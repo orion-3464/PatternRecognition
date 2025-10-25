@@ -1,6 +1,8 @@
 import librosa
 from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy
 
 Fs = 16000
 n1 = 'two' # Kordas Nikolaos (03121032)
@@ -54,7 +56,7 @@ def plot_histgrams(wavs, digits, mfccs):
         elif digits[i] == n2: 
             mfccs_n2_0.append(mfccs[i][0])
             mfccs_n2_1.append(mfccs[i][1])
-
+    
     fig, axs = plt.subplots(2, 2, sharey=True, tight_layout=True, figsize=(10, 10))
 
     axs[0][0].hist(mfccs_n1_0)
@@ -86,6 +88,28 @@ def plot_histgrams(wavs, digits, mfccs):
     plt.savefig("plots/histograms_step4.png")
     plt.show()
 
+def extract_mfscs(mfccs): # MFCC to Mel
+    mfscs = []
+
+    for mfcc in mfccs:
+        mfscs.append(librosa.feature.inverse.mfcc_to_mel(mfcc))
+    return mfscs
+
+def extract_mfscs1(wavs): # Inverse DCT
+    mfscs = []
+
+    for wav in wavs:
+        mfcc = librosa.feature.mfcc(y=wav, sr=Fs, n_mfcc=128, hop_length=(10 * Fs // 1000), win_length=(25 * Fs // 1000))
+        mfscs.append(librosa.db_to_power(scipy.fft.idct(mfcc, type=2, norm="ortho", axis=0)))
+    return mfscs
+
+def extract_mfscs2(wavs): # Forward
+    mfscs = []
+
+    for wav in wavs:
+        mfscs.append(librosa.feature.melspectrogram(y=wav, sr=Fs, win_length=(25 * Fs // 1000), hop_length=(10 * Fs // 1000)))
+    return mfscs
+
 if __name__ == '__main__':
     # Step 2
     wavs, speakers, digits = data_parser()
@@ -93,8 +117,16 @@ if __name__ == '__main__':
     # Step 3
     mfccs, deltas, delta_deltas = extract_features(wavs)
     
-    # Step 4
+    # Step 4.1
     plot_histgrams(wavs, digits, mfccs)
 
-    
+    # Step 4.2
+    mfscs = extract_mfscs(mfccs)
+
+    mfscs1 = extract_mfscs1(wavs)
+    mfscs2 = extract_mfscs2(wavs)
+
+    print(len(mfscs[0][0]), mfscs[0][0])
+    print(len(mfscs1[0][0]), mfscs1[0][0])
+    print(len(mfscs2[0][0]), mfscs2[0][0])
     
