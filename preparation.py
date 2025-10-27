@@ -88,26 +88,28 @@ def plot_histgrams(wavs, digits, mfccs):
     plt.savefig("plots/histograms_step4.png")
     plt.show()
 
-def extract_mfscs(mfccs): # MFCC to Mel
+def extract_mfscs1(mfccs): # MFCC to Mel
     mfscs = []
 
     for mfcc in mfccs:
         mfscs.append(librosa.feature.inverse.mfcc_to_mel(mfcc))
     return mfscs
 
-def extract_mfscs1(wavs): # Inverse DCT
+def extract_mfscs2(mfccs): # Inverse DCT
     mfscs = []
 
-    for wav in wavs:
-        mfcc = librosa.feature.mfcc(y=wav, sr=Fs, n_mfcc=128, hop_length=(10 * Fs // 1000), win_length=(25 * Fs // 1000))
+    for mfcc in mfccs:
         mfscs.append(librosa.db_to_power(scipy.fft.idct(mfcc, type=2, norm="ortho", axis=0)))
     return mfscs
 
-def extract_mfscs2(wavs): # Forward
+def extract_mfscs(wavs): # Forward
     mfscs = []
+    win_len = 25 * Fs // 1000 
+    step = 10 * Fs // 1000
+    n_features = 13
 
     for wav in wavs:
-        mfscs.append(librosa.feature.melspectrogram(y=wav, sr=Fs, win_length=(25 * Fs // 1000), hop_length=(10 * Fs // 1000)))
+        mfscs.append(librosa.feature.melspectrogram(y=wav, sr=Fs, win_length=win_len, hop_length=step, n_mels=n_features))
     return mfscs
 
 if __name__ == '__main__':
