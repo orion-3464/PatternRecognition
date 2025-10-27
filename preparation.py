@@ -3,6 +3,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import torch
+import torch.nn as nn
 
 Fs = 16000
 n1 = 'two' # Kordas Nikolaos (03121032)
@@ -111,6 +113,47 @@ def extract_mfscs(wavs): # Forward
     for wav in wavs:
         mfscs.append(librosa.feature.melspectrogram(y=wav, sr=Fs, win_length=win_len, hop_length=step, n_mels=n_features))
     return mfscs
+
+def Step8():
+    f = 40 # f = 40Hz
+    t = np.linspace(0, 1, 20*f) # 1 second, create 20 points for each period
+    sine = np.sin(2*np.pi*f*t) # create input sine wave
+    cosine = np.cos(2*np.pi*f*t) # create target cosine wave
+
+    seq_len = 10 # sequence length is 10
+    X, Y = [], []
+    for i in range(20*f - seq_len):
+        X.append(x[i:i+seq_len])
+        Y.append(y[i:i+seq_len])
+
+    # convert to torch tensors and add extra dimension of size 1 (1 input/output at each time step)
+    X = torch.tensor(np.array(X), dtype=torch.float32).unsqueeze(-1)
+    Y = torch.tensor(np.array(Y), dtype=torch.float32).unsqueeze(-1)
+    
+    class myLSTM(nn.Module):
+        def __init__(self, input_size=1, hidden_size=32, num_layers=1, output_size=1): # hidden_size = 32 for moderate expressiveness
+            super(myLSTM, self).__init__()
+            self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True) # input is in format (batch_size, seq_len, input_size)
+            self.fc = nn.Linear(hidden_size, output_size)
+            
+        def forward(self, x):
+            out, _ = self.lstm(x)
+            out = self.fc(out)
+            return out
+        
+    model = myLSTM()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01) # we choose a small learning rate to avoid overshooting
+    
+    epochs = 50
+    for epoch in range(epochs):
+        optimizer.zero_grad() # clear previous gradients
+        out = model(X)
+        loss = nn.MSELoss(out, Y) # we use MSE loss function for regression
+        loss.backward() # backpropagate the loss gradients
+        optimizer.step() # update the weights
+        print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item()}")
+
+    
 
 if __name__ == '__main__':
     # Step 2
