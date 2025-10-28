@@ -826,37 +826,37 @@ def EvalCompModels():
 
 
 if __name__ == '__main__':
-    # # Step 2
-    # wavs, speakers, digits = data_parser()
-    # analyze_digits_statistics(digits)
+    # Step 2
+    wavs, speakers, digits = data_parser()
+    analyze_digits_statistics(digits)
 
-    # # Step 3
-    # mfccs, deltas, delta_deltas = extract_features(wavs)
+    # Step 3
+    mfccs, deltas, delta_deltas = extract_features(wavs)
     
-    # # Step 4.1
-    # plot_histgrams(wavs, digits, mfccs)
+    # Step 4.1
+    plot_histgrams(wavs, digits, mfccs)
 
-    # # Step 4.2
-    # extract_mfscs(wavs, mfccs, digits, speakers)
+    # Step 4.2
+    extract_mfscs(wavs, mfccs, digits, speakers)
 
-    # # mfscs1 = extract_mfscs1(mfccs)
-    # # mfscs2 = extract_mfscs2(mfccs)
+    # mfscs1 = extract_mfscs1(mfccs)
+    # mfscs2 = extract_mfscs2(mfccs)
 
-    # # Step 5
-    # feature_vectors = combine_features(mfccs, deltas, delta_deltas, digits)
+    # Step 5
+    feature_vectors = combine_features(mfccs, deltas, delta_deltas, digits)
 
-    # # Step 6
-    # pca2d, pca3d = pca_on_features(feature_vectors, digits)
+    # Step 6
+    pca2d, pca3d = pca_on_features(feature_vectors, digits)
 
-    # # Step 7
-    # scaler = StandardScaler()
-    # X = scaler.fit_transform(feature_vectors)
+    # Step 7
+    scaler = StandardScaler()
+    X = scaler.fit_transform(feature_vectors)
     
-    # classify_Naive_Bayes(X, digits)
-    # classify_SVM(X, digits)
-    # classify_KNN(X, digits)
-    # classify_GBC(X, digits)
-    # classify_LR(X, digits)
+    classify_Naive_Bayes(X, digits)
+    classify_SVM(X, digits)
+    classify_KNN(X, digits)
+    classify_GBC(X, digits)
+    classify_LR(X, digits)
 
     # Step 8
     EvalCompModels()
