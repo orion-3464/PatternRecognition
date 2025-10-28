@@ -596,7 +596,7 @@ def classify_LR(X, digits):
     print(f"  Accuracy = {accuracies[best_f1_idx]:.4f}")
     print("="*60)
 
-
+# Neural Networks for Step 8
 
 class myRNN(nn.Module):
     def __init__(self, input_size=1, hidden_size=32, output_size=1):
@@ -609,7 +609,6 @@ class myRNN(nn.Module):
         out = self.fc(out)
         return out
 
-
 class myLSTM(nn.Module):
     def __init__(self, input_size=1, hidden_size=32, num_layers=1, output_size=1): # hidden_size = 32 for moderate expressiveness
         super(myLSTM, self).__init__()
@@ -621,7 +620,6 @@ class myLSTM(nn.Module):
         out = self.fc(out)
         return out
 
-
 class myGRU(nn.Module):
     def __init__(self, input_size=1, hidden_size=32, output_size=1):
         super(myGRU, self).__init__()
@@ -632,9 +630,45 @@ class myGRU(nn.Module):
         out, _ = self.gru(x)
         out = self.fc(out)
         return out
+    
 
+def train_model(model, X_train, Y_train, epochs=100, lr=0.001): 
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr) # default learning rate small to avoid overshooting
+    losses = []
+    
+    for epoch in range(epochs):
+        model.train() # put model in trainning mode
+        optimizer.zero_grad()   # clean accumulated gradients
+        
+        outputs = model(X_train)
+        loss = criterion(outputs, Y_train)
+        
+        loss.backward()   # backpropagate loss gradients
+        optimizer.step()  # update weights
+        
+        losses.append(loss.item())
+        
+        if (epoch + 1) % 20 == 0:
+            print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.6f}')
+    
+    return losses
 
-def EvalCompNNs():
+def evaluate_model(model, X_test, Y_test):
+    model.eval()    # put model in eval mode
+    with torch.no_grad():   # we do not need to calculate and store gradients in inference
+        predictions = model(X_test)
+        mse = nn.MSELoss()(predictions, Y_test)
+        mae = torch.mean(torch.abs(predictions - Y_test))
+    return predictions, mse.item(), mae.item()
+
+def EvalCompModels():
+    # Repeatability in our results
+    torch.manual_seed(42)
+    np.random.seed(42)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(42)
+
     f = 40 # f = 40Hz
     total_points = 20*f
     t = np.linspace(0, 1, total_points) # 1 second, create 40 points for each period
@@ -647,174 +681,176 @@ def EvalCompNNs():
         X.append(x[i:i+seq_len])
         Y.append(y[i:i+seq_len])
 
-    # Use CUDA for training
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    X = np.array(X, dtype=np.float32)
+    Y = np.array(Y, dtype=np.float32)
 
-    # convert to torch tensors and add extra dimension of size 1 (1 input/output at each time step)
-    X = torch.tensor(np.array(X), dtype=torch.float32).unsqueeze(-1).to(device)
-    Y = torch.tensor(np.array(Y), dtype=torch.float32).unsqueeze(-1).to(device)
-    
+    split_idx = int(0.8 * len(X))   # train - test split
+    X_train = torch.FloatTensor(X[:split_idx]).unsqueeze(-1)
+    Y_train = torch.FloatTensor(Y[:split_idx]).unsqueeze(-1)
+    X_test = torch.FloatTensor(X[split_idx:]).unsqueeze(-1)
+    Y_test = torch.FloatTensor(Y[split_idx:]).unsqueeze(-1)
+
     models = {
-        'RNN': myRNN().to(device),
-        'LSTM': myLSTM().to(device),
-        'GRU': myGRU().to(device)
+        'RNN': myRNN(),
+        'LSTM': myLSTM(),
+        'GRU': myGRU()
     }
-
     results = {}
 
-    for model_name, model in models.items():
-        print(f"\n====== Trainning {model_name} ======")
+    print("\n" + "="*70)
 
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001) # we choose a small learning rate to avoid overshooting
-        
-        epochs = 100
-        losses = []
-
-        for epoch in range(epochs):
-            optimizer.zero_grad() # clear previous gradients
-            out = model(X)
-            loss = criterion(out, Y) # we use MSE loss function for regression
-            loss.backward() # backpropagate the loss gradients
-            optimizer.step() # update the weights
-            losses.append(loss.item())
-            print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item():.6f}")
-
-        results[model_name] = {
-            'model': model,
-            'losses': losses,
-            'final_loss': losses[-1]
+    # Gather trainning and evaluation information from our models
+    for name, model in models.items():
+        print(f"\nTrainning {name}...")
+        print("-"*70)
+        losses = train_model(model, X_train, Y_train, epochs=500, lr=0.001) # train on trainning samples
+        predictions, mse, mae = evaluate_model(model, X_test, Y_test)   # evaluate on test samples
+        results[name] = {
+            'model': model, 
+            'losses': losses, 
+            'predictions': predictions, 
+            'mse': mse, 
+            'mae': mae
         }
-
-    # Plot training loss
+        print(f"\n{name} - Test MSE: {mse:.6f}, Test MAE: {mae:.6f}")
+    
+    # Visualize results with plots
+    # Plot 1: Model comparison (Training Loss + Predictions)
     plt.figure(figsize=(12, 8))
     
+    # Subplot 1: Training Loss Comparison
     plt.subplot(2, 1, 1)
+    epochs_range = range(1, len(results['RNN']['losses']) + 1)
     for model_name in models.keys():
-        plt.plot(range(1, epochs + 1), results[model_name]['losses'], 
-                label=f'{model_name} (Final: {results[model_name]["final_loss"]:.6f})', 
-                linewidth=2)
+        final_loss = results[model_name]['losses'][-1]
+        plt.plot(epochs_range, results[model_name]['losses'],  # Plot Loss vs Epochs for every model
+                label=f'{model_name} (Final: {final_loss:.6f})', 
+                linewidth=2) 
     
-    plt.title("Training Loss Comparison: RNN vs LSTM vs GRU")
+    plt.title("Training Loss Comparison: RNN vs LSTM vs GRU", fontsize=13, fontweight='bold')
     plt.xlabel("Epoch")
     plt.ylabel("MSE Loss")
     plt.legend()
-    plt.grid(True)
-    #plt.yscale('log') 
-    plt.tight_layout()
-
-
-
+    plt.grid(True, alpha=0.3)
+    
+    # Subplot 2: Predicted vs Actual Cosine
     plt.subplot(2, 1, 2)
-    actual = Y.cpu().numpy()[:, -1, 0]
-
+    
+    # Get actual cosine (last point of each sequence)
+    X_all = torch.FloatTensor(X).unsqueeze(-1)
+    Y_all = torch.FloatTensor(Y).unsqueeze(-1)
+    actual = Y_all.cpu().numpy()[:, -1, 0]
+    
     plt.plot(actual, label="Actual Cosine", color='black', linewidth=3, alpha=0.7)
-
+    
     colors = ['red', 'blue', 'green']
     for i, (model_name, result) in enumerate(results.items()):
         model = result['model']
         model.eval()
-        with torch.no_grad():
-            predictions = model(X).cpu().numpy()
+        with torch.no_grad(): # not storing gradient in inference
+            predictions = model(X_all).cpu().numpy()  # calculate predicton samples to plot
         
         predicted = predictions[:, -1, 0]
         plt.plot(predicted, label=f'Predicted {model_name}', 
                 linestyle='--', linewidth=2, alpha=0.8, color=colors[i])
-
-    plt.title("Predicted vs Actual Cosine Wave (All Models)")
+    
+    plt.title("Predicted vs Actual Cosine Wave (All Models)", fontsize=13, fontweight='bold')
     plt.xlabel("Time Step")
     plt.ylabel("Amplitude")
     plt.legend()
-    plt.grid(True)
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
-
-    plt.savefig("plots/all_models_comparison_step8.png", dpi=300)
+    plt.savefig("plots/final_all_models_comparison.png", dpi=300, bbox_inches='tight')
     plt.show()
-
-    actual = Y.cpu().numpy()[:, -1, 0]
     
+    # Seperate Plots for each model
     for model_name, result in results.items():
         model = result['model']
         model.eval()
         with torch.no_grad():
-            predictions = model(X).cpu().numpy()
+            predictions = model(X_all).cpu().numpy()
         
         predicted = predictions[:, -1, 0]
         
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
         
-        ax1.plot(range(1, epochs + 1), result['losses'], 'b-', linewidth=2)
-        ax1.set_title(f"{model_name} - Training Loss\nFinal: {result['final_loss']:.6f}")
-        ax1.set_xlabel("Epoch")
-        ax1.set_ylabel("MSE Loss")
+        # Left: Training Loss
+        ax1.plot(epochs_range, result['losses'], 'b-', linewidth=2)
+        final_loss = result['losses'][-1]
+        ax1.set_title(f"{model_name} - Training Loss\nFinal: {final_loss:.6f}", 
+                     fontsize=12, fontweight='bold')
+        ax1.set_xlabel("Epoch", fontsize=11)
+        ax1.set_ylabel("MSE Loss", fontsize=11)
         ax1.grid(True, alpha=0.3)
-        ax1.set_yscale('log')
         
+        # Right: Predictions vs Actual Cosine
         time_steps = np.arange(len(actual))
         ax2.plot(time_steps, actual, label="Actual Cosine", 
                 color='black', linewidth=2, alpha=0.8)
         ax2.plot(time_steps, predicted, label=f"Predicted {model_name}", 
                 linestyle="--", linewidth=2, alpha=0.9)
-        ax2.set_title(f"{model_name} - Predictions vs Actual")
-        ax2.set_xlabel("Time Step")
-        ax2.set_ylabel("Amplitude")
-        ax2.legend()
-        ax2.grid(True, alpha=0.3)
         
         if len(actual) > 100:
             zoom_start = 100
-            zoom_end = 200
+            zoom_end = min(200, len(actual))
             ax2.set_xlim(zoom_start, zoom_end)
-            ax2.set_title(f"{model_name} - Predictions vs Actual\n(Zoomed Section 100-200)")
+            ax2.set_title(f"{model_name} - Predictions vs Actual\n(Zoomed Section {zoom_start}-{zoom_end})", 
+                         fontsize=12, fontweight='bold')
+        else:
+            ax2.set_title(f"{model_name} - Predictions vs Actual", 
+                         fontsize=12, fontweight='bold')
+        
+        ax2.set_xlabel("Time Step", fontsize=11)
+        ax2.set_ylabel("Amplitude", fontsize=11)
+        ax2.legend(fontsize=10)
+        ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
         plt.savefig(f"plots/{model_name.lower()}_clean.png", dpi=300, bbox_inches='tight')
         plt.show()
 
-    print("\n" + "="*50)
-    print("FINAL COMPARISON RESULTS:")
-    print("="*50)
-    for model_name, result in results.items():
-        model = result['model']
-        model.eval()
-        with torch.no_grad():
-            predictions = model(X).cpu().numpy()
-        predicted = predictions[:, -1, 0]
-        error = np.abs(actual - predicted)
-        
-        print(f"{model_name}:")
-        print(f"  Final Loss: {result['final_loss']:.6f}")
-        print(f"  Mean Absolute Error: {np.mean(error):.6f}")
-        print()
+    # Choose best model based on test MSE
+    sorted_models = sorted(results.items(), key=lambda x: x[1]['mse'])
+
+    print()
+    print(60*"=")
+    print("BEST MODEL SELECTION")
+    print(60*"=")
+
+    for i, (name, metrics) in enumerate(sorted_models, 1):
+        print(f"{i}. {name}: MSE={metrics['mse']:.4f}, MAE={metrics['mae']:.4f}")
+
+    best_model_name, best_metrics = sorted_models[0]
+    print(f"\nBest Model: {best_model_name}")     
+    print(60*"=")   
 
 
 if __name__ == '__main__':
-    # Step 2
-    wavs, speakers, digits = data_parser()
-    analyze_digits_statistics(digits)
+    # # Step 2
+    # wavs, speakers, digits = data_parser()
+    # analyze_digits_statistics(digits)
 
-    # Step 3
-    mfccs, deltas, delta_deltas = extract_features(wavs)
+    # # Step 3
+    # mfccs, deltas, delta_deltas = extract_features(wavs)
     
-    # Step 4.1
-    plot_histgrams(wavs, digits, mfccs)
+    # # Step 4.1
+    # plot_histgrams(wavs, digits, mfccs)
 
-    # Step 4.2
-    extract_mfscs(wavs, mfccs, digits, speakers)
+    # # Step 4.2
+    # extract_mfscs(wavs, mfccs, digits, speakers)
 
-    # mfscs1 = extract_mfscs1(mfccs)
-    # mfscs2 = extract_mfscs2(mfccs)
+    # # mfscs1 = extract_mfscs1(mfccs)
+    # # mfscs2 = extract_mfscs2(mfccs)
 
-    # Step 5
-    feature_vectors = combine_features(mfccs, deltas, delta_deltas, digits)
+    # # Step 5
+    # feature_vectors = combine_features(mfccs, deltas, delta_deltas, digits)
 
-    # Step 6
-    pca2d, pca3d = pca_on_features(feature_vectors, digits)
+    # # Step 6
+    # pca2d, pca3d = pca_on_features(feature_vectors, digits)
 
-    # Step 7
-    scaler = StandardScaler()
-    X = scaler.fit_transform(feature_vectors)
+    # # Step 7
+    # scaler = StandardScaler()
+    # X = scaler.fit_transform(feature_vectors)
     
     # classify_Naive_Bayes(X, digits)
     # classify_SVM(X, digits)
@@ -823,4 +859,4 @@ if __name__ == '__main__':
     # classify_LR(X, digits)
 
     # Step 8
-    EvalCompNNs()
+    EvalCompModels()
