@@ -72,7 +72,7 @@ def analyze_digits_statistics(digits):
 
 def extract_features(wavs):
     mfccs = []
-    win_len = 25 * Fs // 1000 
+    win_len = 25 * Fs // 1000 # Window is in samples, not time. Thus the conversion
     step = 10 * Fs // 1000
     n_features = 13
     deltas = []
@@ -89,7 +89,7 @@ def extract_features(wavs):
 def plot_histgrams(wavs, digits, mfccs):
     mfccs_n1_0, mfccs_n1_1, mfccs_n2_0, mfccs_n2_1 = [], [], [], []
 
-    for i in range(len(wavs)):
+    for i in range(len(wavs)):  
         if digits[i] == n1: 
             mfccs_n1_0.append(mfccs[i][0])
             mfccs_n1_1.append(mfccs[i][1])
@@ -151,7 +151,7 @@ def extract_mfscs(wavs, mfccs, digits, speakers): # Forward
     step = 10 * Fs // 1000
     n_features = 13
 
-    for i, wav in enumerate(wavs):
+    for i, wav in enumerate(wavs): # Calculate Mel Spectrogram for all files
         if digits[i] == n1: 
             if speaker_n1_0 == None:
                 mfcc_n1_0 = mfccs[i] 
@@ -181,7 +181,7 @@ def extract_mfscs(wavs, mfccs, digits, speakers): # Forward
     fig, axs = plt.subplots(2, 2, sharey=True, tight_layout=True, figsize = (10, 10))
 
     for i in range(4):
-        sns.heatmap(cor_matrices_mfscs[i%4], ax=axs[i//2][i%2], cmap="coolwarm", mask=mask, cbar=True, vmin=-1, vmax=1, annot=True, fmt=".2f")
+        sns.heatmap(cor_matrices_mfscs[i%4], ax=axs[i//2][i%2], cmap="coolwarm", mask=mask, cbar=True, vmin=-1, vmax=1, annot=True, fmt=".2f") # draw all heamaps
     
     axs[0][0].set_title(r"1\textsuperscript{st} speaker's MFSCs correlation matrix for digit n\textsubscript{1}=2")
     axs[0][1].set_title(r"2\textsuperscript{nd} speaker's MFSCs correlation matrix for digit n\textsubscript{1}=2")
@@ -246,9 +246,9 @@ def combine_features(mfccs, deltas, delta_deltas, digits):
     return feature_vectors
 
 def pca_on_features(feature_vectors, digits):
-    pca_2dims = PCA(n_components=2)
-    X2d = pca_2dims.fit_transform(feature_vectors)
-    print(pca_2dims.explained_variance_ratio_)
+    pca_2dims = PCA(n_components=2) # PCA for two principal components
+    X2d = pca_2dims.fit_transform(feature_vectors) 
+    print(pca_2dims.explained_variance_ratio_) # Variance explanation by the n_components
     print()
     
     unique_digits = np.array(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"])
@@ -309,6 +309,12 @@ def pca_on_features(feature_vectors, digits):
     plt.show()
     
     return X2d, X3d
+
+# For every classificator:
+# First feature selection - PCA 
+# Then train-test split
+# Fit the classificator (trainning)
+# Find the best version of feature selection and classificator hyperparameters via grid search (for loops)
 
 def classify_Naive_Bayes(X, digits):
     accuracies = []
