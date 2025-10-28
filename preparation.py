@@ -596,7 +596,45 @@ def classify_LR(X, digits):
     print(f"  Accuracy = {accuracies[best_f1_idx]:.4f}")
     print("="*60)
 
-def Step8():
+
+
+class myRNN(nn.Module):
+    def __init__(self, input_size=1, hidden_size=32, output_size=1):
+        super(myRNN, self).__init__()
+        self.rnn = nn.RNN(input_size=input_size, hidden_size=hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        out, _ = self.rnn(x)
+        out = self.fc(out)
+        return out
+
+
+class myLSTM(nn.Module):
+    def __init__(self, input_size=1, hidden_size=32, num_layers=1, output_size=1): # hidden_size = 32 for moderate expressiveness
+        super(myLSTM, self).__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True) # input is in format (batch_size, seq_len, input_size)
+        self.fc = nn.Linear(hidden_size, output_size)
+        
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        out = self.fc(out)
+        return out
+
+
+class myGRU(nn.Module):
+    def __init__(self, input_size=1, hidden_size=32, output_size=1):
+        super(myGRU, self).__init__()
+        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        out, _ = self.gru(x)
+        out = self.fc(out)
+        return out
+
+
+def EvalCompNNs():
     f = 40 # f = 40Hz
     total_points = 20*f
     t = np.linspace(0, 1, total_points) # 1 second, create 40 points for each period
@@ -616,64 +654,139 @@ def Step8():
     # convert to torch tensors and add extra dimension of size 1 (1 input/output at each time step)
     X = torch.tensor(np.array(X), dtype=torch.float32).unsqueeze(-1).to(device)
     Y = torch.tensor(np.array(Y), dtype=torch.float32).unsqueeze(-1).to(device)
-
-    class myLSTM(nn.Module):
-        def __init__(self, input_size=1, hidden_size=32, num_layers=1, output_size=1): # hidden_size = 32 for moderate expressiveness
-            super(myLSTM, self).__init__()
-            self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True) # input is in format (batch_size, seq_len, input_size)
-            self.fc = nn.Linear(hidden_size, output_size)
-            
-        def forward(self, x):
-            out, _ = self.lstm(x)
-            out = self.fc(out)
-            return out
-        
-    model = myLSTM()
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001) # we choose a small learning rate to avoid overshooting
     
-    epochs = 100
-    losses = []
+    models = {
+        'RNN': myRNN().to(device),
+        'LSTM': myLSTM().to(device),
+        'GRU': myGRU().to(device)
+    }
 
-    for epoch in range(epochs):
-        optimizer.zero_grad() # clear previous gradients
-        out = model(X)
-        loss = criterion(out, Y) # we use MSE loss function for regression
-        loss.backward() # backpropagate the loss gradients
-        optimizer.step() # update the weights
-        losses.append(loss.item())
-        print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item():.6f}")
+    results = {}
+
+    for model_name, model in models.items():
+        print(f"\n====== Trainning {model_name} ======")
+
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001) # we choose a small learning rate to avoid overshooting
+        
+        epochs = 100
+        losses = []
+
+        for epoch in range(epochs):
+            optimizer.zero_grad() # clear previous gradients
+            out = model(X)
+            loss = criterion(out, Y) # we use MSE loss function for regression
+            loss.backward() # backpropagate the loss gradients
+            optimizer.step() # update the weights
+            losses.append(loss.item())
+            print(f"Epoch [{epoch + 1}/{epochs}], Loss: {loss.item():.6f}")
+
+        results[model_name] = {
+            'model': model,
+            'losses': losses,
+            'final_loss': losses[-1]
+        }
 
     # Plot training loss
-    plt.figure(figsize=(8, 5))
-    plt.plot(range(1, epochs + 1), losses, marker='o')
-    plt.title("Training Loss vs Epoch")
+    plt.figure(figsize=(12, 8))
+    
+    plt.subplot(2, 1, 1)
+    for model_name in models.keys():
+        plt.plot(range(1, epochs + 1), results[model_name]['losses'], 
+                label=f'{model_name} (Final: {results[model_name]["final_loss"]:.6f})', 
+                linewidth=2)
+    
+    plt.title("Training Loss Comparison: RNN vs LSTM vs GRU")
     plt.xlabel("Epoch")
     plt.ylabel("MSE Loss")
+    plt.legend()
     plt.grid(True)
+    #plt.yscale('log') 
     plt.tight_layout()
-    plt.savefig("plots/lstm_training_loss_step8.png", dpi=300)
-    plt.show()
 
-    model.eval()
-    with torch.no_grad():
-        predictions = model(X).cpu().numpy()  # shape: (num_sequences, seq_len, 1)
 
-    # Take only the last element of each predicted sequence
-    predicted = predictions[:, -1, 0]  # shape: (num_sequences,)
-    actual = Y.cpu().numpy()[:, -1, 0]  # corresponding actual values
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(actual, label="Actual Cosine", linewidth=2)
-    plt.plot(predicted, label="Predicted Cosine", linestyle="--", linewidth=2)
-    plt.title("Predicted vs Actual Cosine Wave (One Point per Sequence)")
+    plt.subplot(2, 1, 2)
+    actual = Y.cpu().numpy()[:, -1, 0]
+
+    plt.plot(actual, label="Actual Cosine", color='black', linewidth=3, alpha=0.7)
+
+    colors = ['red', 'blue', 'green']
+    for i, (model_name, result) in enumerate(results.items()):
+        model = result['model']
+        model.eval()
+        with torch.no_grad():
+            predictions = model(X).cpu().numpy()
+        
+        predicted = predictions[:, -1, 0]
+        plt.plot(predicted, label=f'Predicted {model_name}', 
+                linestyle='--', linewidth=2, alpha=0.8, color=colors[i])
+
+    plt.title("Predicted vs Actual Cosine Wave (All Models)")
     plt.xlabel("Time Step")
     plt.ylabel("Amplitude")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("plots/lstm_predicted_vs_actual_cosine_step8.png", dpi=300)
+
+    plt.savefig("plots/all_models_comparison_step8.png", dpi=300)
     plt.show()
+
+    actual = Y.cpu().numpy()[:, -1, 0]
+    
+    for model_name, result in results.items():
+        model = result['model']
+        model.eval()
+        with torch.no_grad():
+            predictions = model(X).cpu().numpy()
+        
+        predicted = predictions[:, -1, 0]
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+        
+        ax1.plot(range(1, epochs + 1), result['losses'], 'b-', linewidth=2)
+        ax1.set_title(f"{model_name} - Training Loss\nFinal: {result['final_loss']:.6f}")
+        ax1.set_xlabel("Epoch")
+        ax1.set_ylabel("MSE Loss")
+        ax1.grid(True, alpha=0.3)
+        ax1.set_yscale('log')
+        
+        time_steps = np.arange(len(actual))
+        ax2.plot(time_steps, actual, label="Actual Cosine", 
+                color='black', linewidth=2, alpha=0.8)
+        ax2.plot(time_steps, predicted, label=f"Predicted {model_name}", 
+                linestyle="--", linewidth=2, alpha=0.9)
+        ax2.set_title(f"{model_name} - Predictions vs Actual")
+        ax2.set_xlabel("Time Step")
+        ax2.set_ylabel("Amplitude")
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        if len(actual) > 100:
+            zoom_start = 100
+            zoom_end = 200
+            ax2.set_xlim(zoom_start, zoom_end)
+            ax2.set_title(f"{model_name} - Predictions vs Actual\n(Zoomed Section 100-200)")
+        
+        plt.tight_layout()
+        plt.savefig(f"plots/{model_name.lower()}_clean.png", dpi=300, bbox_inches='tight')
+        plt.show()
+
+    print("\n" + "="*50)
+    print("FINAL COMPARISON RESULTS:")
+    print("="*50)
+    for model_name, result in results.items():
+        model = result['model']
+        model.eval()
+        with torch.no_grad():
+            predictions = model(X).cpu().numpy()
+        predicted = predictions[:, -1, 0]
+        error = np.abs(actual - predicted)
+        
+        print(f"{model_name}:")
+        print(f"  Final Loss: {result['final_loss']:.6f}")
+        print(f"  Mean Absolute Error: {np.mean(error):.6f}")
+        print()
 
 
 if __name__ == '__main__':
@@ -710,4 +823,4 @@ if __name__ == '__main__':
     # classify_LR(X, digits)
 
     # Step 8
-    Step8()
+    EvalCompNNs()
