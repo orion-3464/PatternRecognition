@@ -121,7 +121,7 @@
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.6\linewidth]{onetwothree1_praat.png}
+    \includegraphics[width=0.6\linewidth]{plots/onetwothree1_praat.png}
 \end{figure}
 
 \noindent Τέλος σχεδιάσαμε τα παρακάτω διαγράμματα που οπτικοποιούν την εργασία μας (1ο) και τις μετρήσεις μας (2ο)
@@ -222,7 +222,7 @@
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.7\linewidth]{cepstrum.png}
+    \includegraphics[width=0.7\linewidth]{plots/cepstrum.png}
 \end{figure}
 
 \noindent Χρησιμοποιούμε παράθυρο μήκους 25ms, βήμα 10ms και εξάγουμε ως χαρακτηριστικά τα 13 MFCCs ανά αρχείο. Επιπλέον, υπολογίζουμε την πρώτη και δεύτερη διακριτή παράγωγο των MFCCs κατά την μετακίνηση του παραθύρου λήψης τους. Η βιβλιοθήκη librosa έχει συναρτήσεις για όλα αυτά τα ζητούμενα, οπότε η τελική συνάρτηση και η κλήση της στη main φαίνονται παρακάτω:
@@ -346,11 +346,11 @@
 
         \begin{figure}[h]
             \centering
-            \includegraphics[width=0.5\linewidth]{rnn.png}
+            \includegraphics[width=0.5\linewidth]{plots/rnn.png}
         \end{figure}
 
         Ο κώδικας του ορισμού του είναι ο εξής: \\
-        \lstinputlisting[language=Python]{models/rnn.py} 
+        \lstinputlisting[language=Python]{scripts/rnn.py} 
         
         Ουσιαστικά έχουμε το component που υλοποιοεί ένα RNN, το οποίο πρσφέρεται έτοιμο από την PyTorch και κατόπιν ένα fully connected layer το οποίο συνδυάζει τα outputs των hidden layers του RNN κάθε χρονική στιγμή-δείγμα και μας δίνει το τελικό προβλεπόμενο output για τη δεδομένη χρονική στιγμή. 
 
@@ -358,21 +358,21 @@
 
         \begin{figure}[h]
             \centering
-            \includegraphics[width=0.5\linewidth]{lstm.png}
+            \includegraphics[width=0.5\linewidth]{plots/lstm.png}
         \end{figure}
 
         Ο κώδικας του ορισμού του φαίνεται παρακάτω και ακολουθεί τη λογική του RNN: \\
-        \lstinputlisting[language=Python]{models/lstm.py}
+        \lstinputlisting[language=Python]{scripts/lstm.py}
 
     \item \textbf{GRU:} Είναι και αυτό "απόγονος" του RNN. Πρακτικά μοιάζει με το LSTM, μόνο που έχει έναν μηχανισμό από πύλες στο input, αλλά δεν έχει πύλη στο output και συνεπώς έχει λιγότερες παραμέτρους από το LSTM. 
 
         \begin{figure}[h]
             \centering
-            \includegraphics[width=0.5\linewidth]{gru.png}
+            \includegraphics[width=0.5\linewidth]{plots/gru.png}
         \end{figure}
 
         Ο κώδικας του ορισμού του φαίνεται παρακάτω και ακολουθεί τη λογική του RNN και του LSTM: \\
-        \lstinputlisting[language=Python]{models/gru.py}
+        \lstinputlisting[language=Python]{scripts/gru.py}
 \end{itemize}
 
 \noindent Στην συνέχεια, εκπαιδεύουμε τα μοντέλα μας και συγκρίνουμε την απόδοσή τους. Η διαδικασία που ακολουθούμε είναι η εξής:
@@ -383,7 +383,7 @@
     x = np.sin(2*np.pi*f*t), y = np.cos(2*np.pi*f*t))
 
     \item \textbf{Εκπαίδευση των μοντέλων:} \\
-    \lstinputlisting[language=Python]{models/trainning.py}
+    \lstinputlisting[language=Python]{scripts/trainning.py}
 
     Ως κριτήριο ελαχιστοποίησης επιλέξαμε το Mean Square Error ενώ για optimizer τον Adam. O Adam ενσωματώνει και όρους ορμής στην δική του υλοποίηση του gradient descend. Εκπαιδεύουμε όλα τα μοντέλα για 100 εποχές. \\
     Αρχικά, πριν από κάθε εποχή πρέπει να καθαρίσουμε τα προηγούμενα gradients γιατί η default συμπεριφορά της PyTorch είναι να τα συσσωρεύει, όχι να τα πανωγράφει. \\
@@ -391,7 +391,7 @@
     Τα losses αποθηκεύονται ώστε να χρησιμοποιηθούν σε διαγράμματα μετέπειτα.
 
     \item \textbf{Αξιολόγηση των μοντέλων:} \\
-    \lstinputlisting[language=Python]{models/eval.py}
+    \lstinputlisting[language=Python]{scripts/eval.py}
     Αρχικά, βάζουμε το μοντέλο σε eval mode (από documentation της PyTorch) και κατόπιν απενεργοποιούμε τον υπολογισμό και την αποθήκευση των gradients διότι αυτή η υπολογιστικά ακριβή διαδικασία δεν είναι απαραίτητη κατά το inference. Τέλος υπολογίζουμε τις μετρικές μας για τα test samples και τις επιστρέφουμε.
 \end{enumerate}
 
@@ -437,7 +437,7 @@
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{best_model_selection.png}
+    \includegraphics[width=0.5\linewidth]{plots/best_model_selection.png}
 \end{figure}
 
 \bibliographystyle{plain}
