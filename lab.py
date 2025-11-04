@@ -1,6 +1,7 @@
 import os
 from glob import glob
 import librosa
+import pomegranate
 
 def parse_free_digits(directory):
     # Parse relevant dataset info
@@ -47,11 +48,16 @@ def split_free_digits(frames, ids, speakers, labels):
             X_test.append(frame)
             y_test.append(label)
             spk_test.append(spk)
+#            test_indices[idx] = test_indices[idx] + 1
         else:
             X_train.append(frame)
             y_train.append(label)
             spk_train.append(spk)
 
+#    print(f"Train dataset's size is {len(X_train)}") # <- DEBUGGING
+#    for key, values in test_indices.items():
+#        print(f"Train dataset has {values} samples of digit {key}")
+#        print(f"Train dataset has {values} samples of digit {key}")
     return X_train, X_test, y_train, y_test, spk_train, spk_test
 
 if __name__ == '__main__':
