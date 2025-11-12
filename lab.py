@@ -116,7 +116,7 @@ def parser(directory, n_mfcc=6):
 n_states = 4  # the number of HMM states
 n_mixtures = 5  # the number of Gaussians
 n_iters = 150 # max number of iterations for EM
-tol = 0.3
+tol = 0.05
 gmm = True  # whether to use GMM or plain Gaussian
 covariance_type = "diag"  # Use diagonal covariance
 
@@ -339,7 +339,7 @@ bidirectional = True
 dropout = 0.4
 batch_size = 32
 patience = 3
-epochs = 15
+epochs = 20
 lr = 1e-3
 weight_decay = 0.0
 
@@ -398,7 +398,8 @@ class FrameLevelDataset(Dataset):
         returns
             padded: a 3D numpy array of shape num_sequences x max_sequence_length x feature_dimension
         """
-        padded = np.zeros(len(x), max(self.lengths), x[0].shape[1])
+        #padded = np.zeros(len(x), max(self.lengths), x[0].shape[1])
+        padded = np.zeros((len(x), max(self.lengths), x[0].shape[1]))
         # TODO: YOUR CODE HERE
         # --------------- Insert your code here ---------------- #
         for i, seq in enumerate(x):
@@ -612,6 +613,7 @@ def train(train_dataloader, val_dataloader, criterion, use_early_stopping=False)
     )
     # TODO: YOUR CODE HERE
     model.to(device)
+    print(f"Training in {device}")
     
     # Initialize AdamW
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -635,35 +637,35 @@ def train(train_dataloader, val_dataloader, criterion, use_early_stopping=False)
     return model
 
 if __name__ == '__main__':
-    # Step 9
-    train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
+    # # Step 9
+    # train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
 
-    # Step 10 - 11
-    hmms = train_hmms(train_dic, labels)
-    labels = list(set(y_train))
+    # # Step 10 - 11
+    # hmms = train_hmms(train_dic, labels)
+    # labels = list(set(y_train))
 
-    # Step 12
-    hmms, val_accuracy, pred_val, true_val = hmm_tuning(4, 5)
+    # # Step 12
+    # hmms, val_accuracy, pred_val, true_val = hmm_tuning(4, 5)
     
-    print()
-    print(f"Accuracy score on the validation set is: {val_accuracy}")
+    # print()
+    # print(f"Accuracy score on the validation set is: {val_accuracy}")
 
-    pred_test, true_test = evaluate(hmms, test_dic, labels)
-    test_accuracy = accuracy_score(true_test, pred_test)
-    print()
-    print(f"Accuracy score on the test set is: {test_accuracy}")
+    # pred_test, true_test = evaluate(hmms, test_dic, labels)
+    # test_accuracy = accuracy_score(true_test, pred_test)
+    # print()
+    # print(f"Accuracy score on the test set is: {test_accuracy}")
     
-    # Step 13
-    cm_val = confusion_matrix(true_val, pred_val) 
-    plot_confusion_matrix(cm_val, classes=labels)
-    plt.show()
+    # # Step 13
+    # cm_val = confusion_matrix(true_val, pred_val) 
+    # plot_confusion_matrix(cm_val, classes=labels)
+    # plt.show()
 
-    cm_test = confusion_matrix(true_test, pred_test) 
-    plot_confusion_matrix(cm_test, classes=labels)
-    plt.show()
+    # cm_test = confusion_matrix(true_test, pred_test) 
+    # plot_confusion_matrix(cm_test, classes=labels)
+    # plt.show()
     
     # Step 14
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
 
-    criterion = nn.BCELoss()
+    criterion = nn.CrossEntropyLoss()
     model = train(train_dataloader, val_dataloader, criterion)
