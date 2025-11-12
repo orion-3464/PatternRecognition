@@ -339,26 +339,31 @@ bidirectional = True
 dropout = 0.4
 batch_size = 32
 patience = 3
-epochs = 20
-lr = 1e-3
-weight_decay = 0.0
+epochs = 600
+lr = 5e-5
+weight_decay = 0.01
+use_early_stopping = False
 
+checkpoint_filename = "best_model.pt"
 
 class EarlyStopping(object):
-    def __init__(self, patience, mode="min", base=None):
+    def __init__(self, patience, mode="min", base=None, base_model=None):
         self.best = base
         self.patience = patience
         self.patience_left = patience
         self.mode = mode
+        self.pickle = None if base_model == None else torch.save(base_model, checkpoint_filename)
 
-    def stop(self, value: float) -> bool:
+    def stop(self, value: float, model) -> bool:
         # TODO: YOUR CODE HERE
         # Decrease patience if the metric hs not improved
         if self.has_improved(value):
             self.best = value
             self.patience_left = self.patience  # reset patience
+            self.model = model
+            self.pickle = torch.save(model, checkpoint_filename)
         else:
-            self.patience_left -= 1
+            self.patience_left -= int(use_early_stopping)
         
         # Stop when patience reaches zero
         return self.patience_left <= 0
@@ -422,7 +427,7 @@ class BasicLSTM(nn.Module):
         output_dim,
         num_layers,
         bidirectional=False,
-        dropout=0.0,
+        dropout=dropout,
     ):
         super(BasicLSTM, self).__init__()
         self.bidirectional = bidirectional
@@ -600,41 +605,103 @@ def evaluation_loop(model, dataloader, criterion):
     return valid_loss, y_pred, y_true
 
 
-def train(train_dataloader, val_dataloader, criterion, use_early_stopping=False):
+def train(models, optimizers, train_dataloader, val_dataloader, criterion):
     # TODO: YOUR CODE HERE
-    input_dim = train_dataloader.dataset.feats.shape[-1]
-    model = BasicLSTM(
-        input_dim,
-        rnn_size,
-        output_dim,
-        num_layers,
-        bidirectional=bidirectional,
-        dropout=dropout,
-    )
-    # TODO: YOUR CODE HERE
-    model.to(device)
-    print(f"Training in {device}")
+    early_stopping = EarlyStopping(patience, mode="min", base_model=None)
     
-    # Initialize AdamW
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    # TODO: YOUR CODE HERE
+    metrics = {
+        "training_loss": {},
+        "validation_loss": {},
+        "validation_accuracy": {},
+    }
+    
+    best_model_name, best_val_acc = None, -1
 
-    if use_early_stopping: early_stopping = EarlyStopping(patience, mode="min")
-    for epoch in range(epochs):
-        training_loss = training_loop(model, train_dataloader, optimizer, criterion)
-        valid_loss, y_pred, y_true = evaluation_loop(model, val_dataloader, criterion)
+    for model_name, model, optimizer in zip(models.keys(), models.values(), optimizers.values()):
+        model.to(device)
+        print(f"Training in {device}")
 
-        # TODO: Calculate and print accuracy score
-        valid_accuracy = accuracy_score(y_true, y_pred)
-        print(
-            "Epoch {}: train loss = {}, valid loss = {}, valid acc = {}".format(
-                epoch, training_loss, valid_loss, valid_accuracy
+        metrics["training_loss"][model_name] = []
+        metrics["validation_loss"][model_name] = []
+        metrics["validation_accuracy"][model_name] = []
+        for epoch in range(epochs):
+            training_loss = training_loop(model, train_dataloader, optimizer, criterion)
+            valid_loss, y_pred, y_true = evaluation_loop(model, val_dataloader, criterion)
+
+            # TODO: Calculate and print accuracy score
+            valid_accuracy = accuracy_score(y_true, y_pred)
+            print(
+                "Epoch {}: train loss = {}, valid loss = {}, valid acc = {}".format(
+                    epoch, training_loss, valid_loss, valid_accuracy
+                )
             )
-        )
-        if use_early_stopping and early_stopping.stop(valid_loss):
-            print("early stopping...")
-            break
+            metrics["training_loss"][model_name].append(training_loss)
+            metrics["validation_loss"][model_name].append(valid_loss)
+            metrics["validation_accuracy"][model_name].append(valid_accuracy)
 
-    return model
+            if valid_accuracy > best_val_acc:
+                best_model_name = model_name
+
+            if early_stopping.stop(valid_loss, model):
+                print("early stopping...")
+                model_weights = torch.load(checkpoint_filename, weights_only=False)
+                break
+
+    return best_model_name, metrics
+
+def master_train(train_dataloader, val_dataloader, criterion):
+    global use_early_stopping
+
+    use_early_stopping = False
+    input_dim = train_dataloader.dataset.feats.shape[-1]
+    models = {
+        "SimpleLSTM_No_early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=0),
+        "RegLSTM_No_early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=dropout)
+    }
+
+    # Initialize AdamW
+    optimizers = {
+        "SimpleAdam_No_early": torch.optim.AdamW(models["SimpleLSTM_No_early"].parameters(), lr=lr, weight_decay=0.0),
+        "RegAdam_No_early": torch.optim.AdamW(models["RegLSTM_No_early"].parameters(), lr=lr, weight_decay=weight_decay)
+    }
+    _, no_early_stopping_metrics = train(models, optimizers, train_dataloader, val_dataloader, criterion)
+
+    use_early_stopping = True
+    models = {
+        "RegLSTM_Early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=dropout),
+        "BiLSTM_Early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=True, dropout=dropout)
+    }
+    optimizers = {
+        "RegAdam_Early": torch.optim.AdamW(models["RegLSTM_Early"].parameters(), lr=lr, weight_decay=weight_decay),
+        "BiAdam_Early": torch.optim.AdamW(models["BiLSTM_Early"].parameters(), lr=lr, weight_decay=weight_decay)
+    }
+    _, early_stopping_metrics = train(models, optimizers, train_dataloader, val_dataloader, criterion)
+
+    metrics = no_early_stopping_metrics | early_stopping_metrics
+    best_model_name = max(metrics["validation_accuracy"], key=metrics["validation_accuracy"].get)
+    
+    return best_model_name, metrics
+
+def visualize_train(metrics):
+    for metric_name in metrics.keys():
+        plt.figure(figsize=(8, 6))
+        for model_name, values in metrics[metric_name].items():
+            if isinstance(values, np.ndarray):
+                values = values.tolist()
+            plt.plot(range(1, len(values) + 1), values, marker='o', label=model_name)
+
+        # Titles and labels
+        plt.title(f"{metric_name.replace('_', ' ').title()} per Epoch")
+        plt.xlabel("Epoch")
+        plt.ylabel(metric_name.replace('_', ' ').title())
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.tight_layout()
+        plt.show()
+        plt.savefig(f"{metric_name}_plot.png")
+
+
 
 if __name__ == '__main__':
     # # Step 9
@@ -668,4 +735,6 @@ if __name__ == '__main__':
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
 
     criterion = nn.CrossEntropyLoss()
-    model = train(train_dataloader, val_dataloader, criterion)
+    best_model_name, metrics = master_train(train_dataloader, val_dataloader, criterion)
+    visualize_train(metrics)
+    print(f"The best model was {best_model_name}")
