@@ -18,6 +18,8 @@ import torch.nn as nn
 import math
 import torch
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 
 np.random.seed(42)
 
@@ -113,10 +115,12 @@ def parser(directory, n_mfcc=6):
 # Play with diffrent variations of parameters in your experiments
 n_states = 4  # the number of HMM states
 n_mixtures = 5  # the number of Gaussians
-n_iters = 100 # max number of iterations for EM
-tol = 0.5
+n_iters = 150 # max number of iterations for EM
+tol = 0.3
 gmm = True  # whether to use GMM or plain Gaussian
 covariance_type = "diag"  # Use diagonal covariance
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # Gather data separately for each digit
@@ -412,6 +416,17 @@ class BasicLSTM(nn.Module):
         # TODO: YOUR CODE HERE
         # --------------- Insert your code here ---------------- #
         # Initialize the LSTM, Dropout, Output layers
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=rnn_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0,
+            bidirectional=bidirectional,
+        )
+
+        self.dropout = nn.Dropout(dropout)
+        self.output_layer = nn.Linear(self.feature_size, output_dim)
 
 
     def forward(self, x, lengths):
@@ -426,11 +441,26 @@ class BasicLSTM(nn.Module):
 
         # TODO: YOUR CODE HERE
         # --------------- Insert your code here ---------------- #
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x, dtype=torch.float32)
+        if not isinstance(lengths, torch.Tensor):
+            lengths = torch.tensor(lengths, dtype=torch.int64)
+        
+        packed_input = pack_padded_sequence( # pack input so that LSTM doesn't process the padding
+            x, lengths.cpu(), batch_first=True, enforce_sorted=False
+        )
+
+        packed_output, _ = self.lstm(packed_input)
+        outputs, _ = pad_packed_sequence(packed_output, batch_first=True) # retrieve sequence in the original (padded) format
 
         # You must have all of the outputs of the LSTM, but you need only the last one (that does not exceed the sequence length)
         # To get it use the last_timestep method
         # Then pass it through the remaining network
-        last_outputs: torch.Tensor = ...
+        last_outputs = self.last_timestep(outputs, lengths, self.bidirectional)
+
+        last_outputs = self.dropout(last_outputs)
+        last_outputs = self.output_layer(last_outputs)
+
         return last_outputs
 
     def last_timestep(self, outputs, lengths, bidirectional=False):
@@ -495,12 +525,22 @@ def training_loop(model, train_dataloader, optimizer, criterion):
     for num_batch, batch in enumerate(train_dataloader):
         features, labels, lengths = batch
         # TODO: YOUR CODE HERE
+        features = features.to(device).float()
+        labels = labels.to(device)
+        lengths = lengths.to(device)
+
         # zero grads in the optimizer
+        optimizer.zero_grad()
         # run forward pass
+        outputs = model(features, lengths)
         # calculate loss
-        loss = ...
+        loss = criterion(outputs, labels)
+
         # TODO: YOUR CODE HERE
         # Run backward pass
+        loss.backward()
+        optimizer.step()
+
         running_loss += loss.item()
         num_batches += 1
     train_loss = running_loss / num_batches
