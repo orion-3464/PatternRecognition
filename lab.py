@@ -354,13 +354,27 @@ class EarlyStopping(object):
     def stop(self, value: float) -> bool:
         # TODO: YOUR CODE HERE
         # Decrease patience if the metric hs not improved
+        if self.has_improved(value):
+            self.best = value
+            self.patience_left = self.patience  # reset patience
+        else:
+            self.patience_left -= 1
+        
         # Stop when patience reaches zero
-        return False
+        return self.patience_left <= 0
 
     def has_improved(self, value: float) -> bool:
         # TODO: YOUR CODE HERE
         # Check if the metric has improved
-        return False
+        if self.best is None:
+            return True
+
+        if self.mode == "min":
+            return value < self.best
+        elif self.mode == "max":
+            return value > self.best
+        else:
+            raise ValueError(f"Invalid mode '{self.mode}'. Use 'min' or 'max'.")
 
 
 class FrameLevelDataset(Dataset):
@@ -429,7 +443,7 @@ class BasicLSTM(nn.Module):
         self.output_layer = nn.Linear(self.feature_size, output_dim)
 
 
-    def forward(self, x, lengths):
+    def forward(self, x, lengths, use_packed=False):
         """
         x : 3D numpy array of dimension N x L x D
             N: batch index
@@ -446,12 +460,21 @@ class BasicLSTM(nn.Module):
         if not isinstance(lengths, torch.Tensor):
             lengths = torch.tensor(lengths, dtype=torch.int64)
         
-        packed_input = pack_padded_sequence( # pack input so that LSTM doesn't process the padding
-            x, lengths.cpu(), batch_first=True, enforce_sorted=False
-        )
-
-        packed_output, _ = self.lstm(packed_input)
-        outputs, _ = pad_packed_sequence(packed_output, batch_first=True) # retrieve sequence in the original (padded) format
+        if use_packed:
+            # sort the features in decreasing length for packing
+            lengths_sorted, sort_idx = torch.sort(lengths, descending=True)
+            x_sorted = x[sort_idx]
+			# pack sequence to avoid processing the padding
+            packed_input = pack_padded_sequence(x_sorted, lengths_sorted.cpu(), batch_first=True, enforce_sorted=True)
+            # get packed output
+            packed_output, _ = self.lstm(packed_input)
+			# retrieve sequence in its original (padded) format
+            outputs, _ = pad_packed_sequence(packed_output, batch_first=True)
+            # retrieve the output in its original order
+            _, unsort_idx = torch.sort(sort_idx)
+            outputs = outputs[unsort_idx]
+        else:
+            outputs, _ = self.lstm(x)
 
         # You must have all of the outputs of the LSTM, but you need only the last one (that does not exceed the sequence length)
         # To get it use the last_timestep method
@@ -558,21 +581,25 @@ def evaluation_loop(model, dataloader, criterion):
             features, labels, lengths = batch
 
             # TODO: YOUR CODE HERE
+            features = features.to(device).float()
+            labels = labels.to(device)
+            lengths = lengths.to(device)
+            
             # Run forward pass
-            logits = ...
+            logits = model(features, lengths)
             # calculate loss
-            loss = ...
+            loss = criterion(logits, labels)
             running_loss += loss.item()
             # Predict
-            outputs = ...  # Calculate the argmax of logits
-            y_pred = torch.cat((y_pred, outputs))
-            y_true = torch.cat((y_true, labels))
+            outputs = torch.argmax(logits, dim=1) # Calculate the argmax of logits
+            y_pred = torch.cat((y_pred, outputs.cpu()))
+            y_true = torch.cat((y_true, labels.cpu()))
             num_batches += 1
     valid_loss = running_loss / num_batches
     return valid_loss, y_pred, y_true
 
 
-def train(train_dataloader, val_dataloader, criterion):
+def train(train_dataloader, val_dataloader, criterion, use_early_stopping=False):
     # TODO: YOUR CODE HERE
     input_dim = train_dataloader.dataset.feats.shape[-1]
     model = BasicLSTM(
@@ -584,22 +611,24 @@ def train(train_dataloader, val_dataloader, criterion):
         dropout=dropout,
     )
     # TODO: YOUR CODE HERE
+    model.to(device)
+    
     # Initialize AdamW
-    optimizer = ...
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-    early_stopping = EarlyStopping(patience, mode="min")
+    if use_early_stopping: early_stopping = EarlyStopping(patience, mode="min")
     for epoch in range(epochs):
         training_loss = training_loop(model, train_dataloader, optimizer, criterion)
         valid_loss, y_pred, y_true = evaluation_loop(model, val_dataloader, criterion)
 
         # TODO: Calculate and print accuracy score
-        valid_accuracy = ...
+        valid_accuracy = accuracy_score(y_true, y_pred)
         print(
             "Epoch {}: train loss = {}, valid loss = {}, valid acc = {}".format(
                 epoch, training_loss, valid_loss, valid_accuracy
             )
         )
-        if early_stopping.stop(valid_loss):
+        if use_early_stopping and early_stopping.stop(valid_loss):
             print("early stopping...")
             break
 
