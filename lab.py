@@ -9,7 +9,7 @@ from pomegranate.distributions import Normal
 from pomegranate.gmm import GeneralMixtureModel
 from pomegranate.hmm import DenseHMM
 import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score
 import itertools
 import numpy as np
 from tqdm import tqdm
@@ -116,8 +116,8 @@ def parser(directory, n_mfcc=6):
 # Play with diffrent variations of parameters in your experiments
 n_states = 4  # the number of HMM states
 n_mixtures = 5  # the number of Gaussians
-n_iters = 150 # max number of iterations for EM
-tol = 0.01
+n_iters = 250 # max number of iterations for EM
+tol = 0.1
 gmm = True  # whether to use GMM or plain Gaussian
 covariance_type = "diag"  # Use diagonal covariance
 
@@ -165,13 +165,35 @@ def create_data():
 def initialize_and_fit_gmm_distributions(X, n_states, n_mixtures):
     # TODO: YOUR CODE HERE
     dists = []
-    all_data = np.concatenate(X, dtype=np.float32) # Concatenate all frames from all samples into a large matrix, shape (N, D)
+    all_data = np.concatenate(X, dtype=np.float32)
     D = all_data.shape[1]
 
+    global_mean = np.mean(all_data, axis=0)
+    global_std = np.std(all_data, axis=0)
+    
+    variance_floor = 1e-6
+    base_variance = np.maximum(global_std**2, variance_floor).astype(np.float32)
+
     for _ in range(n_states):
-        distributions = [Normal(means=np.random.randn(D).astype(np.float32), covs=np.ones(D, dtype=np.float32), covariance_type=covariance_type) for _ in range(n_mixtures)] # n_mixtures gaussian distributions
-        a = GeneralMixtureModel(distributions, verbose=True, max_iter=n_iters, random_state=42, tol=tol).fit(all_data) # default log propability threshold is 0.1        
-        dists.append(a)
+        distributions = []
+        for _ in range(n_mixtures):
+            means = global_mean + 0.1 * np.random.randn(D).astype(np.float32)
+            
+            covs = base_variance.copy()
+            
+            distributions.append(
+                Normal(means=means, covs=covs, covariance_type=covariance_type)
+            )
+        
+        gmm_model = GeneralMixtureModel(
+            distributions, 
+            verbose=False, 
+            max_iter=n_iters, 
+            random_state=42, 
+            tol=tol
+        ).fit(all_data)
+        dists.append(gmm_model)
+
     return dists
 
 
@@ -190,7 +212,6 @@ def initialize_and_fit_normal_distributions(X, n_states):
 def initialize_transition_matrix(n_states):
     # TODO: YOUR CODE HERE
     # Make sure the dtype is np.float32
-    #A = np.zeros((n_states, n_states), dtype=np.float32)
     A = np.full((n_states, n_states), 1e-6 ,dtype=np.float32)
     for i in range(n_states):
         if i+1 < n_states:
@@ -236,7 +257,7 @@ def train_single_hmm(X, emission_model, digit, n_states):
     return model
 
 
-def train_hmms(train_dic, labels):
+def train_hmms(train_dic, labels, n_states, n_mixtures):
     hmms = {}  # create one hmm for each digit
 
     for dig in labels:
@@ -302,33 +323,149 @@ def plot_confusion_matrix(cm, classes,
     plt.xlabel('Predicted label')
     plt.tight_layout()
 
+# def hmm_tuning(max_n_states, max_n_mixtures):
+#     best_n_states = None
+#     best_n_mixtures = None
+#     best_accuracy = 0
+#     best_hmms = None
+#     best_pred_val = None
+#     best_true_val = None
+#     for n_states in range(1, max_n_states+1):
+#         for n_mixtures in range(1, max_n_mixtures+1):
+#             np.random.seed(42)
+#             hmms = train_hmms(train_dic, labels)
+#             pred_val, true_val = evaluate(hmms, val_dic, labels)
+#             val_accuracy = accuracy_score(true_val, pred_val)
+#             if val_accuracy > best_accuracy:
+#                 best_accuracy = val_accuracy
+#                 best_n_states = n_states
+#                 best_n_mixtures = n_mixtures
+#                 best_hmms = hmms
+#                 best_pred_val = pred_val
+#                 best_true_val = true_val
+
+#     n_states = best_n_states
+#     n_mixtures = best_n_mixtures
+
+#     print(f"Best: states = {n_states}, mixtures = {n_mixtures}.")
+
+#     return best_hmms, best_accuracy, best_pred_val, best_true_val
 def hmm_tuning(max_n_states, max_n_mixtures):
-    best_n_states = None
-    best_n_mixtures = None
+    # Storage for all model metrics
+    metrics = {
+        'n_states': [],
+        'n_mixtures': [],
+        'accuracy': [],
+        'precision': [],
+        'confusion_matrices': [],
+        'predictions': [],
+        'true_labels': []
+    }
+    
     best_accuracy = 0
-    best_hmms = None
-    best_pred_val = None
-    best_true_val = None
-    for n_states in range(1, max_n_states+1):
-        for n_mixtures in range(1, max_n_mixtures+1):
+    best_metrics = {}
+
+    for n_states in range(1, max_n_states + 1):
+        for n_mixtures in range(1, max_n_mixtures + 1):
+            # Set seed for reproducibility
             np.random.seed(42)
-            hmms = train_hmms(train_dic, labels)
+            
+            # Train and evaluate model
+            hmms = train_hmms(train_dic, labels, n_states, n_mixtures)  # Assumes these params are used
             pred_val, true_val = evaluate(hmms, val_dic, labels)
+            
+            # Calculate metrics
             val_accuracy = accuracy_score(true_val, pred_val)
+            val_precision = precision_score(true_val, pred_val, average='weighted', zero_division=0)
+            cm = confusion_matrix(true_val, pred_val)
+
+            # Store metrics
+            metrics['n_states'].append(n_states)
+            metrics['n_mixtures'].append(n_mixtures)
+            metrics['accuracy'].append(val_accuracy)
+            metrics['precision'].append(val_precision)
+            metrics['confusion_matrices'].append(cm)
+            metrics['predictions'].append(pred_val)
+            metrics['true_labels'].append(true_val)
+
+            # Update best model
             if val_accuracy > best_accuracy:
                 best_accuracy = val_accuracy
-                best_n_states = n_states
-                best_n_mixtures = n_mixtures
-                best_hmms = hmms
-                best_pred_val = pred_val
-                best_true_val = true_val
+                best_metrics = {
+                    'n_states': n_states,
+                    'n_mixtures': n_mixtures,
+                    'accuracy': val_accuracy,
+                    'precision': val_precision,
+                    'confusion_matrix': cm,
+                    'predictions': pred_val,
+                    'true_labels': true_val,
+                    'model': hmms
+                }
 
-    n_states = best_n_states
-    n_mixtures = best_n_mixtures
+    print(f"Best: states = {best_metrics['n_states']}, mixtures = {best_metrics['n_mixtures']}, "
+          f"accuracy = {best_metrics['accuracy']:.4f}")
 
-    print(f"Best: states = {n_states}, mixtures = {n_mixtures}.")
+    return best_metrics, metrics
 
-    return best_hmms, best_accuracy, best_pred_val, best_true_val
+def plot_tuning_results(metrics, best_metrics):
+    n_configs = len(metrics['accuracy'])
+    
+    max_states = max(metrics['n_states'])
+    max_mixtures = max(metrics['n_mixtures'])
+    
+    accuracy_matrix = np.zeros((max_states, max_mixtures))
+    for i in range(n_configs):
+        states = metrics['n_states'][i] - 1  
+        mixtures = metrics['n_mixtures'][i] - 1 
+        accuracy_matrix[states, mixtures] = metrics['accuracy'][i]
+    
+    plt.figure(figsize=(10, 8))
+    im = plt.imshow(accuracy_matrix, cmap='YlGnBu', aspect='auto')
+    plt.colorbar(im, label='Accuracy')
+    plt.title('Validation Accuracy by Hyperparameters')
+    plt.xlabel('Number of Mixtures')
+    plt.ylabel('Number of States')
+    
+    plt.xticks(np.arange(max_mixtures), np.arange(1, max_mixtures + 1))
+    plt.yticks(np.arange(max_states), np.arange(1, max_states + 1))
+    
+    for i in range(max_states):
+        for j in range(max_mixtures):
+            text = plt.text(j, i, f'{accuracy_matrix[i, j]:.3f}',
+                           ha="center", va="center", color="black")
+    plt.show()
+
+    plt.figure(figsize=(12, 6))
+    config_indices = np.arange(n_configs)
+    
+    plt.plot(config_indices, metrics['accuracy'], 'o-', label='Accuracy', linewidth=2, markersize=6)
+    plt.plot(config_indices, metrics['precision'], 's-', label='Precision', linewidth=2, markersize=6)
+    
+    plt.xlabel('Configuration Index')
+    plt.ylabel('Score')
+    plt.title('Accuracy and Precision Across All Configurations')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.xticks(config_indices)
+    plt.show()
+
+    plt.figure(figsize=(8, 6))
+    cm = best_metrics['confusion_matrix']
+    im = plt.imshow(cm, cmap='Blues', aspect='auto')
+    plt.colorbar(im)
+    
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            text = plt.text(j, i, str(cm[i, j]),
+                           ha="center", va="center", color="black")
+    
+    plt.title(f'Best Model Confusion Matrix\n'
+              f"States: {best_metrics['n_states']}, Mixtures: {best_metrics['n_mixtures']}\n"
+              f"Accuracy: {best_metrics['accuracy']:.4f}")
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.show()
+
 
 # ========== lstm.py ==========
 
@@ -768,38 +905,29 @@ if __name__ == '__main__':
     # Step 9
     train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
 
-    # Step 10 - 11
-    hmms = train_hmms(train_dic, labels)
+    # Step 10 - 11 -12 -13
+    hmms = train_hmms(train_dic, labels, 4, 5)
     labels = list(set(y_train))
 
-    # Step 12
-    hmms, val_accuracy, pred_val, true_val = hmm_tuning(4, 5)
-    
+    best_metrics, metrics = hmm_tuning(4, 5)
+
+    plot_tuning_results(metrics, best_metrics)
+
     print()
-    print(f"Accuracy score on the validation set is: {val_accuracy}")
 
     pred_test, true_test = evaluate(hmms, test_dic, labels)
     test_accuracy = accuracy_score(true_test, pred_test)
     print()
     print(f"Accuracy score on the test set is: {test_accuracy}")
     
-    # Step 13
-    cm_val = confusion_matrix(true_val, pred_val) 
-    plot_confusion_matrix(cm_val, classes=labels)
-    plt.show()
-
-    cm_test = confusion_matrix(true_test, pred_test) 
-    plot_confusion_matrix(cm_test, classes=labels)
-    plt.show()
-    
     # Step 14
-    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
+    # train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
 
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
     # best_model_name, metrics, models = master_train(train_dataloader, val_dataloader, criterion)
     # visualize_train(metrics)
 
-    test_packing()
+    # test_packing()
 
     # print(f"The best model was {best_model_name}")
 
