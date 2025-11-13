@@ -19,9 +19,10 @@ import math
 import torch
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-
+import time
 
 np.random.seed(42)
+torch.manual_seed(42)
 
 # ========== parser.py ==========
 
@@ -338,11 +339,13 @@ num_layers = 2
 bidirectional = True
 dropout = 0.4
 batch_size = 32
-patience = 3
-epochs = 600
-lr = 5e-5
+patience = 10
+epochs = 750
+lr = 2e-5
 weight_decay = 0.01
+
 use_early_stopping = False
+use_packing=False
 
 checkpoint_filename = "best_model.pt"
 
@@ -449,7 +452,7 @@ class BasicLSTM(nn.Module):
         self.output_layer = nn.Linear(self.feature_size, output_dim)
 
 
-    def forward(self, x, lengths, use_packed=False):
+    def forward(self, x, lengths):
         """
         x : 3D numpy array of dimension N x L x D
             N: batch index
@@ -466,7 +469,7 @@ class BasicLSTM(nn.Module):
         if not isinstance(lengths, torch.Tensor):
             lengths = torch.tensor(lengths, dtype=torch.int64)
         
-        if use_packed:
+        if use_packing:
             # sort the features in decreasing length for packing
             lengths_sorted, sort_idx = torch.sort(lengths, descending=True)
             x_sorted = x[sort_idx]
@@ -607,19 +610,21 @@ def evaluation_loop(model, dataloader, criterion):
 
 def train(models, optimizers, train_dataloader, val_dataloader, criterion):
     # TODO: YOUR CODE HERE
-    early_stopping = EarlyStopping(patience, mode="min", base_model=None)
-    
-    # TODO: YOUR CODE HERE
     metrics = {
         "training_loss": {},
         "validation_loss": {},
         "validation_accuracy": {},
     }
+
+    confusion_matrices = {}
     
     best_model_name, best_val_acc = None, -1
 
     for model_name, model, optimizer in zip(models.keys(), models.values(), optimizers.values()):
         model.to(device)
+
+        early_stopping = EarlyStopping(patience, mode="min", base_model=None)
+
         print(f"Training in {device}")
 
         metrics["training_loss"][model_name] = []
@@ -648,13 +653,14 @@ def train(models, optimizers, train_dataloader, val_dataloader, criterion):
                 model_weights = torch.load(checkpoint_filename, weights_only=False)
                 break
 
-    return best_model_name, metrics
+    return best_model_name, metrics, models
 
 def master_train(train_dataloader, val_dataloader, criterion):
     global use_early_stopping
 
-    use_early_stopping = False
     input_dim = train_dataloader.dataset.feats.shape[-1]
+
+    use_early_stopping = False
     models = {
         "SimpleLSTM_No_early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=0),
         "RegLSTM_No_early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=dropout)
@@ -665,7 +671,7 @@ def master_train(train_dataloader, val_dataloader, criterion):
         "SimpleAdam_No_early": torch.optim.AdamW(models["SimpleLSTM_No_early"].parameters(), lr=lr, weight_decay=0.0),
         "RegAdam_No_early": torch.optim.AdamW(models["RegLSTM_No_early"].parameters(), lr=lr, weight_decay=weight_decay)
     }
-    _, no_early_stopping_metrics = train(models, optimizers, train_dataloader, val_dataloader, criterion)
+    _, no_early_stopping_metrics, no_early_models = train(models, optimizers, train_dataloader, val_dataloader, criterion)
 
     use_early_stopping = True
     models = {
@@ -676,31 +682,84 @@ def master_train(train_dataloader, val_dataloader, criterion):
         "RegAdam_Early": torch.optim.AdamW(models["RegLSTM_Early"].parameters(), lr=lr, weight_decay=weight_decay),
         "BiAdam_Early": torch.optim.AdamW(models["BiLSTM_Early"].parameters(), lr=lr, weight_decay=weight_decay)
     }
-    _, early_stopping_metrics = train(models, optimizers, train_dataloader, val_dataloader, criterion)
+    _, early_stopping_metrics, early_models = train(models, optimizers, train_dataloader, val_dataloader, criterion)
 
-    metrics = no_early_stopping_metrics | early_stopping_metrics
+    models = no_early_models | early_models
+    metrics = {
+        "training_loss": {},
+        "validation_loss": {},
+        "validation_accuracy": {},
+    }
+    for metric in metrics.keys():
+        metrics[metric] = no_early_stopping_metrics[metric] | early_stopping_metrics[metric]
     best_model_name = max(metrics["validation_accuracy"], key=metrics["validation_accuracy"].get)
     
-    return best_model_name, metrics
+    return best_model_name, metrics, models
 
 def visualize_train(metrics):
     for metric_name in metrics.keys():
         plt.figure(figsize=(8, 6))
         for model_name, values in metrics[metric_name].items():
-            if isinstance(values, np.ndarray):
-                values = values.tolist()
             plt.plot(range(1, len(values) + 1), values, marker='o', label=model_name)
 
-        # Titles and labels
         plt.title(f"{metric_name.replace('_', ' ').title()} per Epoch")
         plt.xlabel("Epoch")
         plt.ylabel(metric_name.replace('_', ' ').title())
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.tight_layout()
-        plt.show()
         plt.savefig(f"{metric_name}_plot.png")
+        plt.show()
 
+def visualize_train_val_loss(best_model_name, metrics):
+    train_loss = metrics["training_loss"].get(best_model_name, [])
+    val_loss = metrics["validation_loss"].get(best_model_name, [])
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(1, len(train_loss) + 1), train_loss, label="Training Loss", marker='o')
+    plt.plot(range(1, len(val_loss) + 1), val_loss, label="Validation Loss", marker='s')
+    
+    plt.title(f"Training vs Validation Loss ({best_model_name})")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.tight_layout()
+    plt.savefig(f"{best_model_name}_train_val_loss.png")
+    plt.show()
+
+def test_packing():
+    global use_early_stopping, use_packing
+
+    input_dim = train_dataloader.dataset.feats.shape[-1]
+    use_early_stopping = False
+
+    use_packing = False
+    models = {
+        "SimpleLSTM_No_early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=0),
+    }
+    optimizers = {
+        "SimpleAdam_No_early": torch.optim.AdamW(models["SimpleLSTM_No_early"].parameters(), lr=lr, weight_decay=0.0),
+    }
+    t1 = time.time()
+    train(models, optimizers, train_dataloader, val_dataloader, criterion)
+    t2 = time.time()
+    duration1 = t2 - t1
+
+    use_packing = True
+    models = {
+        "SimpleLSTM_No_early": BasicLSTM(input_dim, rnn_size, output_dim, num_layers, bidirectional=False, dropout=0),
+    }
+    optimizers = {
+        "SimpleAdam_No_early": torch.optim.AdamW(models["SimpleLSTM_No_early"].parameters(), lr=lr, weight_decay=0.0),
+    }
+    t1 = time.time()
+    train(models, optimizers, train_dataloader, val_dataloader, criterion)
+    t2 = time.time()
+    duration2 = t2 - t1
+    
+    print(f"Model training time without packing: {duration1}.")
+    print(f"Model training time with packing: {duration2}.")
 
 
 if __name__ == '__main__':
@@ -735,6 +794,17 @@ if __name__ == '__main__':
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
 
     criterion = nn.CrossEntropyLoss()
-    best_model_name, metrics = master_train(train_dataloader, val_dataloader, criterion)
-    visualize_train(metrics)
-    print(f"The best model was {best_model_name}")
+    # best_model_name, metrics, models = master_train(train_dataloader, val_dataloader, criterion)
+    # visualize_train(metrics)
+
+    test_packing()
+
+    # print(f"The best model was {best_model_name}")
+
+    # val_loss, y_pred_val, y_true_val = evaluation_loop(models[best_model_name], val_dataloader, criterion)
+    # test_loss, y_pred_test, y_true_test = evaluation_loop(models[best_model_name], test_dataloader, criterion)
+
+    # cm_test = confusion_matrix(y_true_test, y_pred_test)
+    # plot_confusion_matrix(cm_test, range(10))
+
+    # visualize_train_val_loss(best_model_name, metrics)
