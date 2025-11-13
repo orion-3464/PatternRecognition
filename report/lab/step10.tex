@@ -12,19 +12,19 @@
 \\
 \noindent Η συνάρτηση train φαίνεται παρακάτω:
 
-\lstinputlisting[language=Python, firstline=239, lastline=249]{../../lab.py}
+\lstinputlisting[language=Python, firstline=260, lastline=270]{../../lab.py}
 
 \noindent Την \verb*|initialize_and_fit_normal_distributions| καθώς είναι υποπερίπτωση του GMM για n\_mixtures = 1.\\
 \\
 \noindent Η αρχική εκπαίδευση του GMM γίνεται ως εξής:
 
-\lstinputlisting[language=Python, firstline=165, lastline=175]{../../lab.py}
+\lstinputlisting[language=Python, firstline=165, lastline=197]{../../lab.py}
 
 \noindent Δηλαδή αρχικοποιούμε κάθε γκαουσιανή σε multivariate gaussian με μέσο ειλημμένο από D-διάστατη τυπική κανονική κατανομή, όπου D η διάσταση των δεδομένων, εδώ 13 για τα MFCCs, και με συνδιασπορά τον D-διάστατο ταυτοτικό πίνακα. Επίσης περιορίζουμε κατά την εκπαίδευση τον πίνακα συνδιασποράς να είναι διαγώνιος, ώστε να μειώσουμε τις παραμέτρους και τον χρόνο εκπαίδευσης αλλά και να έχουμε πιο απλές αναπαραστάσεις για τα δεδομένα μας.\\
 \\
 \noindent Αντίστοιχα, το HMM το εκπαιδεύουμε ως εξής:
 
-\lstinputlisting[language=Python, firstline=220, lastline=236]{../../lab.py}
+\lstinputlisting[language=Python, firstline=241, lastline=257]{../../lab.py}
 
 \noindent Για πίνακα μετάβασης χρησιμοποιήσαμε τον $A = [α_{i, j}]_{1 \le i, j \le n}$, όπου $n = \text{n\_states}$ το πλήθος καταστάσεων στα HMMs, με:
 $$α_{i, j} = 
@@ -36,8 +36,10 @@ $$α_{i, j} =
 \end{cases}
 $$
 
-\noindent Οι τιμές 0.8 για την ανακύκλωση και 0.2 για την μετάβαση επιλέχθηκαν επειδή το μοντέλο πιο συχνά θα επιλέγει να μείνει στην ίδια κατάσταση, παρά να μεταβεί στην επόμενη. Επιπλέον, στον κώδικά μας, επειδή η βιβλιοθήκη pomegranate δημιουργούσε nan values από αριθμητική αστάθεια κατά την εκπαίδευση, βρήκαμε ότι αν στον τελευταίο κλάδο (otherwise) θέσουμε $α_{i, j} = ε$ για κάποιο μικρό $ε > 0$ αντί για $0$, σταματούσε το πρόβλημα αφού υπήρχε καλύτερη αριθμητική ευστάθεια.\\
-\\
+\noindent Οι τιμές 0.8 για την ανακύκλωση και 0.2 για την μετάβαση επιλέχθηκαν επειδή το μοντέλο πιο συχνά θα επιλέγει να μείνει στην ίδια κατάσταση, παρά να μεταβεί στην επόμενη.
+
+\lstinputlisting[language=Python, firstline=212, lastline=222]{../../lab.py}
+
 \noindent Τέλος, αρχικοποιήσαμε τις πιθανότητες εκκίνησης ως $1$ στην αρχική κατάσταση και $0$ σε όλες τις άλλες, ενώ τις πιθανότητες τερματισμού ως $1$ στην τελική κατάσταση και $0$ σε όλες τις άλλες.
 
-\lstinputlisting[language=Python, firstline=204, lastline=217]{../../lab.py}
+\lstinputlisting[language=Python, firstline=225, lastline=238]{../../lab.py}
