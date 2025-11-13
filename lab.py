@@ -117,7 +117,7 @@ def parser(directory, n_mfcc=6):
 n_states = 4  # the number of HMM states
 n_mixtures = 5  # the number of Gaussians
 n_iters = 150 # max number of iterations for EM
-tol = 0.05
+tol = 0.01
 gmm = True  # whether to use GMM or plain Gaussian
 covariance_type = "diag"  # Use diagonal covariance
 
@@ -190,7 +190,8 @@ def initialize_and_fit_normal_distributions(X, n_states):
 def initialize_transition_matrix(n_states):
     # TODO: YOUR CODE HERE
     # Make sure the dtype is np.float32
-    A = np.zeros((n_states, n_states), dtype=np.float32)
+    #A = np.zeros((n_states, n_states), dtype=np.float32)
+    A = np.full((n_states, n_states), 1e-6 ,dtype=np.float32)
     for i in range(n_states):
         if i+1 < n_states:
             A[i][i] = np.float32(0.8)
@@ -336,13 +337,14 @@ output_dim = 10  # number of digits
 # Play with variations of these hyper-parameters and report results
 rnn_size = 64
 num_layers = 2
-bidirectional = True
 dropout = 0.4
 batch_size = 32
 patience = 10
 epochs = 750
 lr = 2e-5
 weight_decay = 0.01
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 use_early_stopping = False
 use_packing=False
@@ -355,7 +357,7 @@ class EarlyStopping(object):
         self.patience = patience
         self.patience_left = patience
         self.mode = mode
-        self.pickle = None if base_model == None else torch.save(base_model, checkpoint_filename)
+        self.pickle = None if base_model == None else torch.save(base_model.state_dict(), checkpoint_filename)
 
     def stop(self, value: float, model) -> bool:
         # TODO: YOUR CODE HERE
@@ -364,7 +366,7 @@ class EarlyStopping(object):
             self.best = value
             self.patience_left = self.patience  # reset patience
             self.model = model
-            self.pickle = torch.save(model, checkpoint_filename)
+            self.pickle = torch.save(model.state_dict(), checkpoint_filename)
         else:
             self.patience_left -= int(use_early_stopping)
         
@@ -763,32 +765,32 @@ def test_packing():
 
 
 if __name__ == '__main__':
-    # # Step 9
-    # train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
+    # Step 9
+    train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
 
-    # # Step 10 - 11
-    # hmms = train_hmms(train_dic, labels)
-    # labels = list(set(y_train))
+    # Step 10 - 11
+    hmms = train_hmms(train_dic, labels)
+    labels = list(set(y_train))
 
-    # # Step 12
-    # hmms, val_accuracy, pred_val, true_val = hmm_tuning(4, 5)
+    # Step 12
+    hmms, val_accuracy, pred_val, true_val = hmm_tuning(4, 5)
     
-    # print()
-    # print(f"Accuracy score on the validation set is: {val_accuracy}")
+    print()
+    print(f"Accuracy score on the validation set is: {val_accuracy}")
 
-    # pred_test, true_test = evaluate(hmms, test_dic, labels)
-    # test_accuracy = accuracy_score(true_test, pred_test)
-    # print()
-    # print(f"Accuracy score on the test set is: {test_accuracy}")
+    pred_test, true_test = evaluate(hmms, test_dic, labels)
+    test_accuracy = accuracy_score(true_test, pred_test)
+    print()
+    print(f"Accuracy score on the test set is: {test_accuracy}")
     
-    # # Step 13
-    # cm_val = confusion_matrix(true_val, pred_val) 
-    # plot_confusion_matrix(cm_val, classes=labels)
-    # plt.show()
+    # Step 13
+    cm_val = confusion_matrix(true_val, pred_val) 
+    plot_confusion_matrix(cm_val, classes=labels)
+    plt.show()
 
-    # cm_test = confusion_matrix(true_test, pred_test) 
-    # plot_confusion_matrix(cm_test, classes=labels)
-    # plt.show()
+    cm_test = confusion_matrix(true_test, pred_test) 
+    plot_confusion_matrix(cm_test, classes=labels)
+    plt.show()
     
     # Step 14
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
