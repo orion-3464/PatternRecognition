@@ -761,6 +761,7 @@ def train(models, optimizers, train_dataloader, val_dataloader, criterion):
             metrics["validation_accuracy"][model_name].append(valid_accuracy)
 
             if valid_accuracy > best_val_acc:
+                best_val_acc = valid_accuracy
                 best_model_name = model_name
 
             if early_stopping.stop(valid_loss, model):
@@ -768,7 +769,7 @@ def train(models, optimizers, train_dataloader, val_dataloader, criterion):
                 model_weights = torch.load(checkpoint_filename, weights_only=False)
                 break
 
-    return best_model_name, metrics, models
+    return best_model_name, best_val_acc, metrics, models
 
 def master_train(train_dataloader, val_dataloader, criterion):
     global use_early_stopping
@@ -786,7 +787,7 @@ def master_train(train_dataloader, val_dataloader, criterion):
         "SimpleAdam_No_early": torch.optim.AdamW(models["SimpleLSTM_No_early"].parameters(), lr=lr, weight_decay=0.0),
         "RegAdam_No_early": torch.optim.AdamW(models["RegLSTM_No_early"].parameters(), lr=lr, weight_decay=weight_decay)
     }
-    _, no_early_stopping_metrics, no_early_models = train(models, optimizers, train_dataloader, val_dataloader, criterion)
+    no_early_best_model_name, no_early_best_acc, no_early_stopping_metrics, no_early_models = train(models, optimizers, train_dataloader, val_dataloader, criterion)
 
     use_early_stopping = True
     models = {
@@ -797,7 +798,7 @@ def master_train(train_dataloader, val_dataloader, criterion):
         "RegAdam_Early": torch.optim.AdamW(models["RegLSTM_Early"].parameters(), lr=lr, weight_decay=weight_decay),
         "BiAdam_Early": torch.optim.AdamW(models["BiLSTM_Early"].parameters(), lr=lr, weight_decay=weight_decay)
     }
-    _, early_stopping_metrics, early_models = train(models, optimizers, train_dataloader, val_dataloader, criterion)
+    early_best_model_name, early_best_acc, early_stopping_metrics, early_models = train(models, optimizers, train_dataloader, val_dataloader, criterion)
 
     models = no_early_models | early_models
     metrics = {
@@ -807,8 +808,11 @@ def master_train(train_dataloader, val_dataloader, criterion):
     }
     for metric in metrics.keys():
         metrics[metric] = no_early_stopping_metrics[metric] | early_stopping_metrics[metric]
-    best_model_name = max(metrics["validation_accuracy"], key=metrics["validation_accuracy"].get)
     
+    best_model_name = no_early_best_model_name
+    if(early_best_acc > no_early_best_acc):
+        best_model_name = early_best_model_name
+        
     return best_model_name, metrics, models
 
 def visualize_train(metrics):
