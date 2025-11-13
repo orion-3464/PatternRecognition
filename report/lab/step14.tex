@@ -121,5 +121,18 @@
 	\caption{Models' Validation Accuracy}
 \end{figure}
 
-\noindent Όπως είναι λογικό, 
+\noindent Όπως είναι λογικό, το accuracy στο validation set ακολουθεί αντίστροφη πορεία σύγκλισης από το loss σε όλα τα μοντέλα.
 
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7\linewidth]{images/test_cm_lstm.png}
+	\caption{Confusion Matrix}
+\end{figure}
+
+\noindent Το confusion matrix στο test set δείχνει πως το καλύτερο μοντέλο μας τα πάει εξαιρετικά αφού κάνει ελάχιστα λάθη σε όλα τα ψηφία.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7\linewidth]{images/result_lstm_packing.png}
+	\caption{Confusion Matrix}
+\end{figure}
