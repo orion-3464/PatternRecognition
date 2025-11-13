@@ -364,6 +364,7 @@ def hmm_tuning(max_n_states, max_n_mixtures):
     
     best_accuracy = 0
     best_metrics = {}
+    best_model = None
 
     for n_states in range(1, max_n_states + 1):
         for n_mixtures in range(1, max_n_mixtures + 1):
@@ -401,11 +402,12 @@ def hmm_tuning(max_n_states, max_n_mixtures):
                     'true_labels': true_val,
                     'model': hmms
                 }
+                best_model = hmms
 
     print(f"Best: states = {best_metrics['n_states']}, mixtures = {best_metrics['n_mixtures']}, "
           f"accuracy = {best_metrics['accuracy']:.4f}")
 
-    return best_metrics, metrics
+    return best_metrics, metrics, best_model
 
 def plot_tuning_results(metrics, best_metrics):
     n_configs = len(metrics['accuracy'])
@@ -907,32 +909,32 @@ if __name__ == '__main__':
     labels = list(set(y_train))
 
     # Step 10 - 11 -12 -13
-    best_metrics, metrics = hmm_tuning(4, 5)
+    best_metrics, metrics, best_model = hmm_tuning(4, 5)
 
     plot_tuning_results(metrics, best_metrics)
 
     print()
 
-    pred_test, true_test = evaluate(hmms, test_dic, labels)
+    pred_test, true_test = evaluate(best_model, test_dic, labels)
     test_accuracy = accuracy_score(true_test, pred_test)
     print()
     print(f"Accuracy score on the test set is: {test_accuracy}")
     
     # Step 14
-    # train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
+    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
 
-    # criterion = nn.CrossEntropyLoss()
-    # best_model_name, metrics, models = master_train(train_dataloader, val_dataloader, criterion)
-    # visualize_train(metrics)
+    criterion = nn.CrossEntropyLoss()
+    best_model_name, metrics, models = master_train(train_dataloader, val_dataloader, criterion)
+    visualize_train(metrics)
 
-    # test_packing()
+    test_packing()
 
-    # print(f"The best model was {best_model_name}")
+    print(f"The best model was {best_model_name}")
 
-    # val_loss, y_pred_val, y_true_val = evaluation_loop(models[best_model_name], val_dataloader, criterion)
-    # test_loss, y_pred_test, y_true_test = evaluation_loop(models[best_model_name], test_dataloader, criterion)
+    val_loss, y_pred_val, y_true_val = evaluation_loop(models[best_model_name], val_dataloader, criterion)
+    test_loss, y_pred_test, y_true_test = evaluation_loop(models[best_model_name], test_dataloader, criterion)
 
-    # cm_test = confusion_matrix(y_true_test, y_pred_test)
-    # plot_confusion_matrix(cm_test, range(10))
+    cm_test = confusion_matrix(y_true_test, y_pred_test)
+    plot_confusion_matrix(cm_test, range(10))
 
-    # visualize_train_val_loss(best_model_name, metrics)
+    visualize_train_val_loss(best_model_name, metrics)
