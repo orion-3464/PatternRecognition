@@ -322,34 +322,8 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.tight_layout()
+    plt.show()
 
-# def hmm_tuning(max_n_states, max_n_mixtures):
-#     best_n_states = None
-#     best_n_mixtures = None
-#     best_accuracy = 0
-#     best_hmms = None
-#     best_pred_val = None
-#     best_true_val = None
-#     for n_states in range(1, max_n_states+1):
-#         for n_mixtures in range(1, max_n_mixtures+1):
-#             np.random.seed(42)
-#             hmms = train_hmms(train_dic, labels)
-#             pred_val, true_val = evaluate(hmms, val_dic, labels)
-#             val_accuracy = accuracy_score(true_val, pred_val)
-#             if val_accuracy > best_accuracy:
-#                 best_accuracy = val_accuracy
-#                 best_n_states = n_states
-#                 best_n_mixtures = n_mixtures
-#                 best_hmms = hmms
-#                 best_pred_val = pred_val
-#                 best_true_val = true_val
-
-#     n_states = best_n_states
-#     n_mixtures = best_n_mixtures
-
-#     print(f"Best: states = {n_states}, mixtures = {n_mixtures}.")
-
-#     return best_hmms, best_accuracy, best_pred_val, best_true_val
 def hmm_tuning(max_n_states, max_n_mixtures):
     # Storage for all model metrics
     metrics = {
@@ -478,7 +452,7 @@ rnn_size = 64
 num_layers = 2
 dropout = 0.4
 batch_size = 32
-patience = 10
+patience = 15
 epochs = 750
 lr = 2e-5
 weight_decay = 0.01
@@ -904,21 +878,23 @@ def test_packing():
 
 
 if __name__ == '__main__':
-    # Step 9
-    train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
-    labels = list(set(y_train))
+    # # Step 9
+    # train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
+    # labels = list(set(y_train))
 
-    # Step 10 - 11 -12 -13
-    best_metrics, metrics, best_model = hmm_tuning(4, 5)
+    # # Step 10 - 11 -12 -13
+    # best_metrics, metrics, best_model = hmm_tuning(4, 5)
 
-    plot_tuning_results(metrics, best_metrics)
+    # plot_tuning_results(metrics, best_metrics)
 
-    print()
+    # print()
 
-    pred_test, true_test = evaluate(best_model, test_dic, labels)
-    test_accuracy = accuracy_score(true_test, pred_test)
-    print()
-    print(f"Accuracy score on the test set is: {test_accuracy}")
+    # pred_test, true_test = evaluate(best_model, test_dic, labels)
+    # test_accuracy = accuracy_score(true_test, pred_test)
+    # cm = confusion_matrix(true_test, pred_test)
+    # plot_confusion_matrix(cm, classes=range(10))
+    # print()
+    # print(f"Accuracy score on the test set is: {test_accuracy}")
     
     # Step 14
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
