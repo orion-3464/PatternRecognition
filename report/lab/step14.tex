@@ -38,7 +38,7 @@
 
 Στην συνάρτηση train:
 
-\lstinputlisting[language=Python, firstline=728, lastline=774]{../../lab.py}
+\lstinputlisting[language=Python, firstline=728, lastline=771]{../../lab.py}
 
 \noindent Παίρνουμε τις μετρικές που μας ενδιαφέρουν, δηλαδή το training και validation loss καθώς και το validation accuracy. Η master train είναι αυτή που εκπαιδεύει όλα τα μοντέλα που μας ενδιαφέρουν.
 
@@ -136,3 +136,7 @@
 	\includegraphics[width=0.7\linewidth]{images/result_lstm_packing.png}
 	\caption{Confusion Matrix}
 \end{figure}
+
+\noindent Το καλύτερο μοντέλο από άποψη βέλτιστου accuracy στο validation dataset είναι το απλό LSTM. Το test accuracy του είναι 95.7\%. 
+
+\noindent Για το bonus ερώτημα βλέπουμε κάτι παράδοξο. Ενώ περιμέναμε το packing να είναι γρηγορότερο από το μη packing συμβαίνει το αντίθετο! Αυτό γίνεται διότι για να ταξινομήσουμε τις ακολουθίες κατά φθίνουσα σειρά μήκους πρέπει να φέρουμε τα μήκη στη cpu από τη gpu του υπολογιστή που εκπαιδεύαμε τα μοντέλα. Για τόσο μικρό dataset το χρονικό overhead αυτής της μεταφοράς δεδομένων είναι σημαντικά μεγαλύτερο του χρόνου που θα χρειαζόταν οι πράξεις για την εκπαίδευση κάποιων περισσότερων ακολουθιών με zero-padding.  
