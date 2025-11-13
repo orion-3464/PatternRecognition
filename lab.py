@@ -904,11 +904,9 @@ def test_packing():
 if __name__ == '__main__':
     # Step 9
     train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
-
-    # Step 10 - 11 -12 -13
-    hmms = train_hmms(train_dic, labels, 4, 5)
     labels = list(set(y_train))
 
+    # Step 10 - 11 -12 -13
     best_metrics, metrics = hmm_tuning(4, 5)
 
     plot_tuning_results(metrics, best_metrics)
