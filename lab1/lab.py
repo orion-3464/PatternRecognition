@@ -882,23 +882,23 @@ def test_packing():
 
 
 if __name__ == '__main__':
-    # # Step 9
-    # train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
-    # labels = list(set(y_train))
+    # Step 9
+    train_dic, y_train, val_dic, y_val, test_dic, y_test, labels = create_data()
+    labels = list(set(y_train))
 
-    # # Step 10 - 11 -12 -13
-    # best_metrics, metrics, best_model = hmm_tuning(4, 5)
+    # Step 10 - 11 -12 -13
+    best_metrics, metrics, best_model = hmm_tuning(4, 5)
 
-    # plot_tuning_results(metrics, best_metrics)
+    plot_tuning_results(metrics, best_metrics)
 
-    # print()
+    print()
 
-    # pred_test, true_test = evaluate(best_model, test_dic, labels)
-    # test_accuracy = accuracy_score(true_test, pred_test)
-    # cm = confusion_matrix(true_test, pred_test)
-    # plot_confusion_matrix(cm, classes=range(10))
-    # print()
-    # print(f"Accuracy score on the test set is: {test_accuracy}")
+    pred_test, true_test = evaluate(best_model, test_dic, labels)
+    test_accuracy = accuracy_score(true_test, pred_test)
+    cm = confusion_matrix(true_test, pred_test)
+    plot_confusion_matrix(cm, classes=range(10))
+    print()
+    print(f"Accuracy score on the test set is: {test_accuracy}")
     
     # Step 14
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size)
