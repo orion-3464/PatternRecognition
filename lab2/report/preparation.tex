@@ -163,5 +163,34 @@ $$m = 2595\log_{10}\left(1+\frac{f}{700}\right)$$
 \noindent Έτσι, οφείλουμε και εδώ να επισημάνουμε ότι τα πρώτα chromagrams θα παρουσιάσουν τα ίδια προβλήματα στα LSTM που θα παρουσίαζαν τα αντίστοιχα spectrograms τους (μεγάλες απαιτήσεις σε μνήμα, υπολογιστικούς πόρους, vanishing gradient, ...). Παρότι έχουμε να κάνουμε με πληροφορία για 12 νότες αντί για 140 Mel frequencies, η διάσταση των δεδομένων μας παραμένει μεγάλη. Έτσι, τα beat synced chromagrams που έχουν και εκείνα 2 τάξεις μεγέθους λιγότερα timesteps και το μεγαλύτερο ποσοστό της πληροφορίας των απλών chromograms αποτελούν μία πολύ καταλληλότερη επιλογή χαρακτηριστικών για το LSTM μας. 
 
 \section*{Βήμα 4}
+\subsection*{Ερώτημα α}
+Θα ξεκινήσουμε να σχολιάζουμε τον κώδικα του tutorial κελί με κελί. \\ 
 
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\linewidth]{images/prep_step4_imports.png}
+\end{figure}
 
+\noindent Το πρώτο πράγμα που γίνεται είναι η εισαγωγή διάφορων κομματιών κώδικα από το repository του lab3. Συγκεκριμένα, εισάγεται ο εξής κώδικας:
+
+\lstinputlisting[language=Python, firstline=99, lastline=159]{documents/dataset.py}
+
+\lstinputlisting[language=Python, firstline=9, lastline=30]{documents/dataset.py}
+
+\lstinputlisting[language=Python, firstline=33, lastline=53]{documents/dataset.py}
+
+\noindent Θα ξεκινήσουμε σχολιάζοντας τη κλάση \textit{SpectrogramDataset}. Βασιζόμαστε στο  \href[]{https://docs.pytorch.org/tutorials/beginner/basics/data_tutorial.html#creating-a-custom-dataset-for-your-files}{documentation} της PyTorch. Ουσιαστικά, ξεκινάμε κληρωνομώντας από τη βασική κλάση Dataset της Pytorch. Η συνάρτηση \textit{\_\_init\_\_()} είναι εκείνη που εκτελείται όταν αρχικοποιείται ένα αντικείμενο τύπου \textit{SpectrogramDataset}. Στην περίπτωσή μας αυτό που γίνεται είναι ο καθορισμός για το αν πρόκειται για training ή test dataset, στη συνέχεια ενέργειες που έχουν να κάνουν με το path στο οποίο είναι αποθηκευμένα τα δεδομένα και τέλος διάφορα metadata για αυτά. \\
+
+\noindent Θα συνεχίσουμε σχολιάζοντας την συνάρτηση \textit{\_\_getitem\_\_()}. Αυτή τη συνάρτηση χρησιμοποιούν οι DataLoaders για να δειγματοληπτήσουν το dataset και να δημιουργήσουν batches ή γενικά να εξυπηρετήσουν το data iteration στη διαδικασία εκπαίδευσης του εκάστοτε μοντέλου. \\
+
+\noindent Συνεχίζουμε με την συνάρτηση \textit{\_\_len\_\_()}. Αυτή η συνάρτηση επιστρέφει το μέγεθος του dataset. \\
+
+\noindent Εκτός από τις παραπάνω συναρτήσεις που ουσιαστικά επισκιάζουν εικονικές μεθόδους της κλάσης-γονέα dataset ορίζουμε και τη συνάρτηση \textit{get\_files\_labels()}. Αυτή πρακτικά με την κατάλληλη αναζήτηση στο directory που είναι αποθηκευμένο το dataset επιστρέφει τα files και τα labels που τους αντιστοιχούν σε 2 lists. \\
+
+\noindent Το CLASS\_MAPPING δεν είναι τίποτα άλλο παρά ένα dictionary που αντιστοιχεί κλάσεις των αρχείων σε εκείνες που θα θεωρούμε ότι ανήκουν κατά την εκπαίδευση. Αυτό γίνεται διότι πολλά genres μουσικής είναι από τη φύση τους πολύ παρόμοια και έτσι δεν έχει νόημα να προσπαθήσουμε να τα διαχωρίσουμε και με το μοντέλο μας. Ένα χαρακτηριστικό παράδειγμα στο dictionary μας είναι ότι τα κλειδιά Rock και Psych-Rock οδηγούν και τα 2 στο value Rock, συγχωνεύοντας πρακτικά τις 2 αυτές κατηγορίες μουσικής. \\
+
+\noindent Η συνάρτηση \textit{torch\_train\_val\_split()} ουσιαστικά χωρίζει το dataset σε train και test κατά ποσοστό που καθορίζεται από το χρήστη και με βάση αυτά τα 2 επιστρέφει του αντίστοιχους PyTorch DataLoaders. 
+
+\section*{Βήμα 5}
+
+\section*{Βήμα 6}
