@@ -189,7 +189,45 @@ $$m = 2595\log_{10}\left(1+\frac{f}{700}\right)$$
 
 \noindent Το CLASS\_MAPPING δεν είναι τίποτα άλλο παρά ένα dictionary που αντιστοιχεί κλάσεις των αρχείων σε εκείνες που θα θεωρούμε ότι ανήκουν κατά την εκπαίδευση. Αυτό γίνεται διότι πολλά genres μουσικής είναι από τη φύση τους πολύ παρόμοια και έτσι δεν έχει νόημα να προσπαθήσουμε να τα διαχωρίσουμε και με το μοντέλο μας. Ένα χαρακτηριστικό παράδειγμα στο dictionary μας είναι ότι τα κλειδιά Rock και Psych-Rock οδηγούν και τα 2 στο value Rock, συγχωνεύοντας πρακτικά τις 2 αυτές κατηγορίες μουσικής. \\
 
-\noindent Η συνάρτηση \textit{torch\_train\_val\_split()} ουσιαστικά χωρίζει το dataset σε train και test κατά ποσοστό που καθορίζεται από το χρήστη και με βάση αυτά τα 2 επιστρέφει του αντίστοιχους PyTorch DataLoaders. 
+\noindent Η συνάρτηση \textit{torch\_train\_val\_split()} ουσιαστικά χωρίζει το dataset σε train και test κατά ποσοστό που καθορίζεται από το χρήστη και με βάση αυτά τα 2 επιστρέφει του αντίστοιχους PyTorch DataLoaders. \\
+
+\noindent Στη συνέχεια, αυτό που γίνεται είναι χρήση όσων εξηγήθηκαν παραπάνω για την αρχικοποίηση και την επεξήγηση κάποιων δειγμάτων από τα dataset. Αυτό, αρχικά γίνεται για χαρακτηριστικά που αντιστοιχούν στα beat synced spectrograms και στη συνέχεια για χρωμογραφήματα και τελικά για τα πλήρη - όχι beat synced δεδομένα (spectrograms και chromagrams). Στη συνέχεια εκτυπώνονται ορισμένα δείγματα τους ώστε να δούμε το μέγεθός τους, τις διαστάσεις τους και τις ετικέτες τους. Αυτά φαίνονται στις παρακάτω εικόνες:
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\linewidth]{images/prep_step4_init.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/prep_step4_print1.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\linewidth]{images/prep_step4_chroma.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/prep_step4_print2.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\linewidth]{images/prep_step4_full.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/prep_step4_print3.png}
+\end{figure}
+
+\noindent Το μόνο που μπορούμε να σχολιάσουμε και δεν είναι απευθείας προφανές από τον κώδικα και τα σχόλιά του είναι ότι τα labels από strings έχουν μετατραπεί σε ακέραιους. Μπορούμε εύκολα να δούμε ποιοι ακέραιοι αντιστοιχούν σε ποιες κλάσεις με ένα απλό inspection στο CLASS\_MAPPING που χρησιμοποιείται στην αρχικοποίση όλων των PyTorch Datasets. Για παράδειγμα: 0 -$>$ Rock, 1 -$>$ None, ...  
+
+\subsection*{Ερωτήματα β και γ}
+
+
 
 \section*{Βήμα 5}
 
