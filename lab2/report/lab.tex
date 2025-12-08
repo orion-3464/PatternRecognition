@@ -1,4 +1,102 @@
-\section*{Βήμα 7}
+\section*{Βήμα 7.1}
+\subsection*{Ερώτημα α}
+Ξεκινάμε παραθέτοντας την καμπύλη του training loss για το CNN που εκπαιδεύεται στο MNIST. 
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/step7a_training_loss.png}
+\end{figure}
+
+\noindent Βλέπουμε ότι πρακτικά το loss έχει πάψει να μειώνεται, επομένως το μοντέλο έχει φτάσει το όριο των δυνατοτήτων του. \\
+
+\noindent \textbf{Επίπεδο εισόδου:} \\
+
+\noindent Στο πρώτο αυτό layer, ουσιαστικά έχουμε την εικόνα μεγέθους 24x24. Τα gradient έχουν πλέον μικρύνει τόσο πολύ διότι το μοντέλο έχει ήδη συγκλίνει, όπως βλέπουμε και στο γράφημα παραπάνω. Οι διορθώσεις είναι πλέον αμελητέες, ειδικά σε αυτό το επίπεδο που είναι το πιο βαθύ κατά το back propagation.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_input.png}
+\end{figure}
+
+\noindent \textbf{Πρώτο συνελικτικό επίπεδο:} 
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_conv1.png}
+\end{figure}
+
+\noindent Αυτό το επίπεδο χρησιμοποιεί 8 κανάλια με kernels διάστασης 5x5. Βλέποντας τα activations, βλέπουμε ότι σχηματίζονται ανάγλυφα των ψηφίων. Τα gradients, συσσωρεύονται γύρω από το περίγραμμα των ψηφίων. Αυτό μας ωθεί να συμπεράνουμε ότι πρόκειται για έναν ανιχνευτή ακμών ή γωνιών. Γενικά χαρακτηριστικών που οφείλονται σε χρωματικές αντιθέσεις. Πρακτικά, αυτό το επίπεδο εξάγει τα θεμελιώδη γεωμετρικά χαρακτηριστικά των ψηφίων. Τα gradients είναι μικρά για τον ίδιο λόγο με πριν. \\
+
+\noindent \textbf{ReLU:} \\
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_relu.png}
+\end{figure}
+
+\noindent Ο ρόλος της ReLU είναι αφενός να εισάγει μη-γραμμικότητα στο μοντέλο αυξάνοντας τη χωρητικότητά του, καθιστώντας το ικανό να περιγράψει πιο περίπλοκες εξαρτήσεις και αφετέρου να καταστέλει το overfitting κρατώντας μόνο τα θετικά activations. \\
+
+\noindent \textbf{Pooling:}
+
+\noindent Το pooling μειώνει την χωρική διάσταση των χαρακτηριστικών επιλέγοντας τη μεγαλύτερη τιμή από ένα ορισμένο παράθυρο από pixels. Αυτό το layer συμβάλλει καθοριστικά στην βασική ιδιότητα των CNN, το translation invariance και λειτουργεί σαν κάποιας μορφής regularization. Η οπτικοποίηση που μας δίνεται από την ιστοσελίδα φαίνεται παρακάτω:
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_pooling.png}
+\end{figure}
+
+\noindent \textbf{Δεύτερο συνελικτικό επίπεδο}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_conv2.png}
+\end{figure}
+
+\noindent Το δεύτερο συνελικτικό επίπεδο του δικτύου έχει πιο αφηρημένες ενεργοποιήσεις και gradients. Έτσι, αντιλαμβανόμαστε πως έχει να κάνει με συγκεκριμένα μοτίβα κάθε ψηφίου, όπως τους κύκλους στο 8 που βλέπουμε στην εικόνα μας. Τα κανάλια που χρησιμοποιούνται εδώ είναι 16, περισσότερα από πριν. Αυτό είναι λογικό αφού το πλήθος των αφηρημένων χαρακτηριστικών που θα θέλαμε να αναγνωρίσουμε στα ψηφία μας είναι σχετικά μεγαλύτερος από τα πρωτογενή τους γεωμετρικά χαρακτηριστικά (γραμμές και κύκλοι). \\
+
+\noindent Ακολουθούν ένα επίπεδο ReLU και Pooling όπως και πριν με ακριβώς τις ίδιες λειτουργίες. 
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_relu2.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\linewidth]{images/step7a_pool2.png}
+\end{figure}
+
+\noindent \textbf{Fully Connected Επίπεδο:}
+
+\noindent Το επίπεδο αυτό αναλαμβάνει την τελική ταξινόμηση. Επειδή είναι fully connected συνδυάζει όλη την πληροφορία και τα features που έχουν εξαχθεί από τα συνελικτικά επίπεδα που προηγήθηκαν και καταλήγει σε ένα μονοδιάστατο διάνυσμα με μήκος 10 (μία θέση για κάθε ψηφίο).
+
+ \begin{figure}[H]
+ 	\centering
+ 	\includegraphics[width=0.9\linewidth]{images/step7a_fc.png}
+ \end{figure}
+ 
+ \noindent Προφανώς και η πιο σκούρη-έντονη ενεργοποίηση αντιστοιχεί στο προτελευταίο ψηφίο, δηλαδή το 8 που είναι και αυτό που εξετάζουμε. \\
+ 
+ \noindent \textbf{Softmax:}
+ 
+  \begin{figure}[H]
+ 	\centering
+ 	\includegraphics[width=0.9\linewidth]{images/step7a_softmax.png}
+ \end{figure}
+ 
+ \noindent Το τελευταίο αυτό επίπεδο κανονικοποιεί την έξοδο του fully connected layer στο διάστημα (0, 1) επιτρέποντάς μας να ερμηνεύσουμε την τελική έξοδο ως πιθανότητα για την αναγνώριση του εκάστοτε ψηφίου. 
+ 
+ 
+
+
+
+
+
+
+
+
+\section*{Βήμα 7.2}
+
 \section*{Βήμα 8}
 \section*{Βήμα 9}
 \section*{Βήμα 10}
