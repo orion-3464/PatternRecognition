@@ -1,0 +1,14 @@
+Mean Spearman correlation (per group and axis):
+
+LSTM:
+valence: 0.1876
+energy: 0.6306
+danceability: 0.4131
+MEAN (across axes): 0.4104
+
+CNN:
+valence: 0.6807
+energy: 0.7583
+danceability: 0.7771
+MEAN (across axes): 0.7387
+
