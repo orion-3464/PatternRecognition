@@ -145,17 +145,48 @@
 	\includegraphics[width=0.5\linewidth]{images/step71e_statistics.png}
 \end{figure}
 
-
-
-
-
-
-
-
-
 \section*{Βήμα 7.2}
 
 \section*{Βήμα 8}
+\subsection*{Ερώτημα α}
+Τα μοντέλα των προηγούμενων ερωτημάτων εκτελούσαν την ταξινόμηση αξιοποιώντας ένα fully connected layer στο τέλος τους. Έτσι, η έξοδός τους, έπαιρνε μία από τις 10 διακριτές τιμές που αντιστοιχούν στις κλάσεις του προβλήματός μας. 
+
+\noindent Στο πρόβλημα της παλινδόμησης, όμως, δε θέλουμε τα μοντέλα μας να παίρνουν διακριτές τιμές, αλλά συνεχείς. Έτσι αλλάζουμε το fully connected layer και επιβάλουμε 1 έξοδο. Αυτή παίρνει συνεχείς τιμές, το output του νευρώνα. \\
+
+\noindent Επιπλέον, μετρικές όπως το accuracy, precision, recall και f1 score δεν έχουν νόημα στο πλαίσιο της παλινδρόμησης. Για αυτό αφενός αντικαθιστούμε το CrossEntropy με το MSELoss και αφετέρου υπολογίζουμε την ίδια συνάρτηση τόσο στο train όσο και στο validation set ώστε να αξιολογήσουμε το μοντέλο μας. \\
+
+\noindent Ο κώδικας που ορίζει τα μοντέλα μας με τις αλλαγές που περιγράψαμε φαίνεται παρακάτω:
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/lstm_regressor.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{images/cnn_regressor.png}
+\end{figure}
+
+\subsection*{Ερώτημα β}
+\subsection*{Ερώτημα γ}
+\subsection*{Ερώτημα δ}
+\subsection*{Ερώτημα ε}
 \section*{Βήμα 9}
+\subsection*{Ερώτημα α}
+Στο paper της αναφοράς [5] εξετάστηκαν βαθιά συνελικτικά δίκτυα ως προς τη γενικότητα ή την εξειδίκευση των νευρώνων τους και συνεπώς τη δυνατότητά τους να μεταφέρουν χρήσιμη γνώση-χαρακτηριστικά με transfer learning. Τα συμπεράσματά του μπορούν να συνοψιστούν με 2 προτάσεις:
+
+\begin{enumerate}
+	\item Το transferability γνώσης επηρεάζεται αρνητικά από εξειδικευμένους νευρώνες στα υψηλότερα στρώματα του δικτύου και από co-adapted νευρώνες στο μέσο τους.
+	
+	\item Ακόμα και αν το original task απέχει αρκετά από το target task, η αρχικοποίηση του δικτύου με transferred features προωθεί καλύτερα το generalization μετά από fine tuning σε σχέση με τη αρχικοποίηση με τυχαία features.   
+\end{enumerate} 
+
 \section*{Βήμα 10}
-\section*{Βήμα 11}
+\subsection*{Ερώτημα α}
+Τα συμπεράσματα του paper της αναφοράς [7] με 2 προτάσεις είναι:
+
+\begin{enumerate}
+	\item Για πρώτη φορά αναπτύχθηκε ένα MultiModel βαθιάς μάθησης ικανό να μάθει ταυτόχρονα πολλαπλά tasks από διαφορετικούς τομείς και να έχει καλή απόδοση σε όλα τους.
+	
+	\item Ο τρόπος να το πετύχει κανείς αυτό είναι η χρήση πολλαπλών υπολογιστικών block με διαφορετική εξειδίκευση (convolution layers, attention mechanisms, encoders, decoders, ...) έτσι ώστε η εκπαίδευσή τους με όσες περισσότερες παραμέτρους μπορεί να αξιοποιήσει το transfer learning μεταξύ τους, ακόμα και αν τα δεδομένα δεν είναι πάρα πολλά. 
+\end{enumerate}
