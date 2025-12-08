@@ -266,20 +266,53 @@ $$m = 2595\log_{10}\left(1+\frac{f}{700}\right)$$
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\linewidth]{images/prep_step5_lstm.png}
+	\includegraphics[width=0.9\linewidth]{images/prep_step5_lstm.png}
 \end{figure}
 
-\noindent Ουσιαστικά, αυτό που πρέπει να προσέξουμε είναι ότι στα dataset που ορίσαμε η πρώτη διάσταση των τενσόρων είναι το batch. Για αυτό και ενεργοποιούμε το batch\_first option στο PyTorch LSTM module στην κλάση που ορίζουμε. Εκτός από αυτό το βασικό LSTM module (προσαρμόζουμε το μέγεθος των features ανάλογα με το αν είναι bidirectional ή όχι) έχουμε και ένα fully connected layer το οποίο παίρνει το output κάθε κατάστασης του LSTM και στην έξοδο έχει τόσους νευρώνες όσες και οι τάξεις που προσπαθούμε να μάθουμε (one-hot encoding). Έτσι θα γίνει η τελική ταξινόμηση 
+\noindent Αξιοποιούμε τον βοηθητικό κώδικα κληρωνομώντας από την κλάση LSTMBackbone, πρακτιά ίδιο με του προηγούμενου εργαστηρίου. Το fully connected layer χρησιμοποιείται για να κάνει την τελική ταξινόμηση σε 10 κλάσεις, αριθμό που εξάγαμε εξετάζοντας τα ιστογράμματα του προηγούμενου ερωτήματος.  
 
 \subsection*{Ερώτημα β}
 Υλοποιούμε την συνάρτηση train ενσωματώνοντας την επιλογή overfit\_batch:
 
+\lstinputlisting[language=Python]{documents/train_eval.py}
+
+\noindent Σε περίπτωση που χρησιμοποιήσουμε το overfit\_batch το μοντέλο εκπαιδεύεται πάνω στα πρώτα 4 batches του dataloader (τυχαίο δηλαδή) μέχρι να υπερπροσαρμοστεί (loss πολύ κοντά στο 0), ενώ αν όχι ακολουθούμε την κλασσική loop εκπαίδευσης για αριθμό εποχών που ορίζεται από το χρήστη. \\
+
+\noindent Αξίζει να σχολιάσουμε ορισμένες από τις επιλογές που έχουμε κάνει για τον αλγόριθμο εκπαίδευσής μας. Αρχικά βάζουμε το μοντέλο που εκπαιδεύουμε στη συσκευή που θα πραγματοποιήσει τους υπολογισμούς, δηλαδή τον accelerator της επιλογής μας (GPU). Χρησιμοποιούμε early stopping όπως ακριβώς και στο προηγούμενο εργαστήριο. Χρησιμοποιούμε scheduler για να ανανεώνουμε το learning rate του optimizer με βάση το loss μετά από κάθε εποχή. Έτσι, όταν έχουμε φτάσει σε κάποιο πλατό απόδοσης μειώνουμε πολύ το learning rate για να αποφύγουμε φαινόμενα αστάθειας και ταλαντώσεων. Ταυτόχρονα, στις πρώτες εποχές το learning rate είναι υψηλότερο επιτρέποντάς μας να συγκλίνουμε ταχύτερα στο ελάχιστο loss. Στη συνέχεια, διακρίνουμε 2 modes εκπαίδευσης, ένα για το αν το overfit\_batch είναι True και ένα για το αν είναι False. 
+
+\noindent Στην περίπτωση του True, δηλαδή όταν θέλουμε να ελέγξουμε την εκπαιδευσιμότητα της αρχιτεκτονικής που επιλέξαμε για το task μας, επιλέγουμε τα 4 batches του dataloader και με ένα while loop που σταματά στο overfitting, δηλαδή accuracy 1 στα training data και loss πολύ κοντά στο 0, εκπαιδεύουμε το μοντέλο σε αυτά. Η άλλη περίπτωση κάνει κλασικό back-propagation. 
+
+\noindent Με την συνάρτηση evaluate κάνουμε ένα απλό inference του μοντέλου και καταγράφουμε μετρικές όπως το loss και το accuracy.
+
+\subsection*{Ερώτημα γ}
+Μας ζητείται να εκπαιδεύσουμε το LSTM μας πάνω στα Mel spectrograms. Αρχικά, ξεκινάμε με την επιλογή overfit batch επιλέγοντας ένα μοντέλο με rnn\_size 256.
+
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\linewidth]{images/prep_step5_train.png}
+	\includegraphics[width=0.6\linewidth]{images/overfit_batch_lstm_mel.png}
 \end{figure}
 
-\noindent Σε περίπτωση που χρησιμοποιήσουμε το overfit\_batch το μοντέλο εκπαιδεύεται πάνω στο πρώτο batch του dataloader (τυχαίο δηλαδή) μέχρι να υπερπροσαρμοστεί (loss πολύ κοντά στο 0), ενώ αν όχι ακολουθούμε την κλασσική loop εκπαίδευσης για αριθμό εποχών που ορίζεται από το χρήστη. 
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{images/overfit_batch_lstm_mel_acc.png}
+\end{figure}
 
+\noindent Βλέπουμε ότι πράγματι το μοντέλο υπερπροσαρμόζεται στα 4 batches γεγονός που δείχνει ότι μπορεί να αποστηθίσει τα μοτίβα τους. Επιπλέον, αξίζει να σημειώσουμε ότι αρχικά παρατηρήσαμε έντονες ταλαντώσεις και αστάθεια στην εκπαίδευση του δικτύου. Αυτό το αντιμετωπίσαμε με scheduler και με προσαρμογή της βαρύτητας κάθε κλάσης (class\_weight) δεδομένου ότι γνωρίζουμε ότι το dataset μας είναι imbalanced. Έτσι παίρνουμε μία πολύ πιο smooth εικόνα training loss από αυτή που είχαμε αρχικά.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{images/train_mel_lstm_loss.png}
+\end{figure}
+
+\noindent Εδώ παρατηρούμε ότι το μοντέλο μας εκπαιδεύεται, αφού μειώνεται το validation loss, πράγμα αναμενόμενο σύμφωνα με το προηγούμενο ερώτημα, αλλά ξεκινά να υπερπροσαρμόζεται μετά την 30η εποχή. Έτσι το early stopping που έχουμε υλοποιήσει σταματά την εκπαίδευση κάποιες εποχές αργότερα, δεδομένου ότι η απόδοσή του δεν βελτιώνεται. Αρχίζουμε να υποψιαζόμαστε ότι η αρχιτεκτονική μας δεν ανταποκρίνεται στο generalization που απαιτεί το task και ότι το dataset είναι ενδεχομένως ανεπαρκές για την εξαγωγή χρήσιμων και γενικεύσιμων χαρακτηριστικών που θα βοηθήσουν στην ταξινόμηση.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{images/train_mel_lstm_acc.png}
+\end{figure}
+
+\noindent Αναμενόμενα, το Accuracy ακολουθεί παρεμφερές trend με το loss. Η απόδοσή μας δεν είναι καλή (51\% στο training set και 35\% στο validation set).
+
+\subsection*{Ερώτημα δ}
 
 \section*{Βήμα 6}
