@@ -113,18 +113,37 @@
  
  \begin{figure}[H]
  	\centering
- 	\includegraphics[width=0.75\linewidth]{images/step71d_losses.png}
+ 	\includegraphics[width=0.75\linewidth]{images/step71d_loss.png}
  \end{figure}
  
  \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.75\linewidth]{images/step71d_accs.png}
+	\includegraphics[width=0.75\linewidth]{images/step71d_acc.png}
 \end{figure}
 
-\noindent Το δίκτυο υπερπροσαρμόστηκε στην εποχή 2875. Αυτό σημαίνει ότι πράγματι είναι ικανό να μάθει τα μοτίβα για το task μας. 
+\noindent Το δίκτυο υπερπροσαρμόστηκε στην εποχή 101. Αυτό σημαίνει ότι πράγματι είναι ικανό να μάθει τα μοτίβα για το task μας. 
  
 \subsection*{Ερώτημα ε}
+Το kernel που επιλέγουμε έχει μέγεθος 3x3. Εκπαιδεύουμε το μοντέλο μας και παίρνουμε τα εξής:
 
+ \begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\linewidth]{images/step71e_loss.png}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\linewidth]{images/step71e_acc.png}
+\end{figure}
+
+\noindent Το μοντέλο τα πηγαίνει καλύτερα από το LSTM της προπαρασκεύης αφού πετυχαίνει καλύτερα σκορ τόσο στα δεδομένα εκπαίδευσης όσο και στα δεδομένα επικύρωσης. Παρόλα αυτά το θέμα με την αδυναμία γενίκευσης δεν έχει επιλυθεί. Τα χαρακτηριστικά που εξάγουν τα feature maps του CNN είναι μεν καλύτερα αλλά ούτε αυτά επαρκούν για την επίτευξη μεγάλων επιδόσεων στο task. \\
+
+\noindent Μερικά στατιστικά συνοψίζονται παρακάτω:
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.5\linewidth]{images/step71e_statistics.png}
+\end{figure}
 
 
 
